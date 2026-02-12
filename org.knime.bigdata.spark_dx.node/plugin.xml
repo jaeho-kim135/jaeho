@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+  <extension point="org.knime.workbench.repository.nodes">
+    <node
+        id="org.knime.bigdata.spark_dx.node.unpivot"
+        category-path="/community/bigdata/spark_dx"
+        factory-class="knime.bigdata.spark_dx.node.unpivot.SparkUnpivotNodeFactory">
+    </node>
+  </extension>
+
+</plugin>

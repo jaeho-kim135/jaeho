@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<knimeNode icon="./icon.png" type="Manipulator">
+    <name>Spark Unpivot (DX)</name>
+
+    <shortDescription>
+        Unpivots (melts) selected value columns into two columns: ColumnNames / ColumnValues.
+    </shortDescription>
+
+    <fullDescription>
+        <intro>
+            This node performs an Unpivot (melt) operation on Spark data.
+            Selected value columns are transformed into rows.
+        </intro>
+
+        <option name="Value columns">
+            Columns to be unpivoted (melted).
+        </option>
+        <option name="Retained columns">
+            Columns that will be kept as-is for each produced row.
+        </option>
+        <option name="Skip rows containing missing cells">
+            If enabled, rows with missing values in the pivoted columns may be dropped (implementation on Spark side).
+        </option>
+    </fullDescription>
+
+    <ports>
+        <inPort index="0" name="Spark Data" description="Input Spark data." />
+        <outPort index="0" name="Spark Data" description="Unpivoted Spark data (Spark side)." />
+    </ports>
+</knimeNode>
