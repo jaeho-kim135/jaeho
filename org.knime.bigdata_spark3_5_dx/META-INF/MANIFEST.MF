@@ -1,0 +1,15 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Spark 3.5 DX Jobs
+Bundle-SymbolicName: org.knime.bigdata.spark3_5_dx;singleton:=true
+Bundle-Version: 1.0.0.qualifier
+Bundle-Vendor: Zalesia
+Bundle-RequiredExecutionEnvironment: JavaSE-17
+Bundle-ActivationPolicy: lazy
+Bundle-ClassPath: .
+Automatic-Module-Name: org.knime.bigdata.spark3_5_dx
+Require-Bundle: org.eclipse.core.runtime,
+ org.knime.bigdata.spark.core,
+ org.knime.bigdata.spark3_5,
+ org.apache.spark_2.12,
+ org.knime.bigdata.spark_dx.node

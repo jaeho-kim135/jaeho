@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+  <!-- Register JobRunFactoryProvider for Spark 3.5 -->
+  <extension point="org.knime.bigdata.spark.core.JobRunFactoryProvider">
+    <JobRunFactoryProvider
+        ProviderClass="knime.bigdata.spark3_5_dx.base.Spark_3_5_UnpivotJobRunFactoryProvider"/>
+  </extension>
+
+</plugin>
