@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<knimeNode xmlns="http://knime.org/node/v3.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://knime.org/node/v3.1 http://knime.org/node/v3.1.xsd"
+    icon="number_string.png" type="Manipulator">
+    <name>Spark Number to String(Hyim)</name>
+    <shortDescription>
+        Converts numeric columns to String type in a Spark DataFrame.
+    </shortDescription>
+    <fullDescription>
+        <intro>
+            <p>
+                Converts selected numeric columns (Integer, Long, Double) in a Spark DataFrame
+                to String type. Null values remain null in the output.
+            </p>
+        </intro>
+        <tab name="Column Selection">
+            <option name="Included Columns">
+                Select the numeric columns to convert to String. Only numeric-type
+                columns from the input Spark DataFrame are shown.
+            </option>
+        </tab>
+    </fullDescription>
+    <ports>
+        <inPort index="0" name="Spark DataFrame">
+            Spark DataFrame containing numeric columns to convert.
+        </inPort>
+        <outPort index="0" name="Spark DataFrame">
+            Spark DataFrame with selected columns converted to String type.
+        </outPort>
+    </ports>
+</knimeNode>
