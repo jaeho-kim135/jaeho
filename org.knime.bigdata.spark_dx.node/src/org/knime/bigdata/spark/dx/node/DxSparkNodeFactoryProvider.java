@@ -6,6 +6,7 @@ import org.knime.bigdata.spark.dx.node.preproc.numbertostring.SparkNumberToStrin
 import org.knime.bigdata.spark.dx.node.preproc.stringtodatetime.SparkStringToDateTimeNodeFactory;
 import org.knime.bigdata.spark.dx.node.preproc.stringtonumber.SparkStringToNumberNodeFactory;
 import org.knime.bigdata.spark.dx.node.preproc.unpivot.SparkUnpivotNodeFactory;
+import org.knime.bigdata.spark.dx.node.sql.expression.SparkExpressionNodeFactory;
 import org.knime.bigdata.spark.dx.node.sql.multiquery.SparkMultiQueryNodeFactory;
 
 /**
@@ -22,6 +23,7 @@ public class DxSparkNodeFactoryProvider extends DefaultSparkNodeFactoryProvider 
             new SparkMultiQueryNodeFactory(),
             new SparkStringToNumberNodeFactory(),
             new SparkNumberToStringNodeFactory(),
-            new SparkStringToDateTimeNodeFactory());
+            new SparkStringToDateTimeNodeFactory(),
+            new SparkExpressionNodeFactory());
     }
 }

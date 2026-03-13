@@ -8,6 +8,7 @@ Export-Package: org.knime.bigdata.spark3_5.dx.jobs.preproc.numbertostring,
  org.knime.bigdata.spark3_5.dx.jobs.preproc.stringtodatetime,
  org.knime.bigdata.spark3_5.dx.jobs.preproc.stringtonumber,
  org.knime.bigdata.spark3_5.dx.jobs.preproc.unpivot,
+ org.knime.bigdata.spark3_5.dx.jobs.sql.expression,
  org.knime.bigdata.spark3_5.dx.jobs.sql.multiquery
 Require-Bundle: org.knime.core;bundle-version="[5.6.0,6.0.0)",
  org.knime.bigdata.spark.core;bundle-version="[5.6.0,6.0.0)",

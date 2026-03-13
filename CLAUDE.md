@@ -1,14 +1,171 @@
-# 병합 필요 사항
+# 포함된 노드 목록
 
-> **다른 컴퓨터에서 Spark Expression 노드를 개발해둔 소스가 있음.**
-> 이 git repo의 소스와 충돌 없이 병합해야 함.
->
-> - 이 repo (현재 컴퓨터): Unpivot, Multi Query (WebUI 전환), StringToNumber, NumberToString, StringToDateTime 노드
-> - 다른 컴퓨터: Spark Expression 노드
-> - 충돌 가능 지점: `DxSparkNodeFactoryProvider.java`, `MANIFEST.MF`, `plugin.xml`, `build.properties` 등 공통 등록 파일
-> - 병합 시 양쪽 CLAUDE.md 내용도 하나로 합칠 것
->
-> **병합 전략**: 다른 컴퓨터의 Expression 노드 소스를 이 repo에 추가하되, 공통 파일(Factory Provider, MANIFEST, plugin.xml)은 양쪽 노드 등록 내용을 모두 포함하도록 수동 병합 필요.
+이 저장소에는 다음 커스텀 Spark 노드들이 포함되어 있습니다:
+
+| 노드 | 패키지 | 다이얼로그 방식 | 상태 |
+|------|--------|----------------|------|
+| Spark Unpivot (Hyim) | `preproc.unpivot` | Swing (DataAwareNodeDialogPane) | 테스트 완료 |
+| Spark Multi Query (Hyim) | `sql.multiquery` | WebUI (NodeParameters) | 테스트 완료 |
+| Spark Expression (Hyim) | `sql.expression` | WebUI (커스텀 Vue.js) | 테스트 완료 |
+| Spark StringToNumber (Hyim) | `preproc.stringtonumber` | WebUI (NodeParameters) | 테스트 완료 |
+| Spark NumberToString (Hyim) | `preproc.numbertostring` | WebUI (NodeParameters) | 테스트 완료 |
+| Spark StringToDateTime (Hyim) | `preproc.stringtodatetime` | Swing (DataAwareNodeDialogPane) | 테스트 완료 |
+
+---
+---
+
+# Spark Expression Node (신규 개발)
+
+## 개요
+
+여러 Spark SQL 표현식을 순차적으로 적용하여 컬럼을 추가/변환하는 노드.
+각 표현식마다 Expression, Output Mode (APPEND/REPLACE), Output Column Name을 설정할 수 있다.
+**커스텀 Vue.js WebUI 다이얼로그**를 사용하여 코드 에디터 + 실시간 미리보기를 제공한다.
+
+- **노드명**: Spark Expression (Hyim)
+- **최소 Spark 버전**: 3.4
+- **노드 타입**: Manipulator
+- **다이얼로그**: 커스텀 WebUI (`NodeDialog` 인터페이스 + Vue.js 프론트엔드)
+
+---
+
+## 플러그인 구조
+
+| 플러그인 | 역할 |
+|----------|------|
+| `org.knime.bigdata.spark_dx.node` | 노드 UI (Factory, Model, Settings, WebDialog, RPC Service, JobInput/Output) + Vue.js 프론트엔드 (`js-src/`) |
+| `org.knime.bigdata_spark3_4_dx` | Spark 3.4용 ExpressionJob 구현 |
+| `org.knime.bigdata_spark3_5_dx` | Spark 3.5용 ExpressionJob 구현 |
+
+---
+
+## 클래스 구조
+
+### Node 레이어 (`org.knime.bigdata.spark.dx.node.sql.expression`)
+
+| 파일 | 역할 |
+|------|------|
+| `SparkExpressionNodeFactory.java` | `DefaultSparkNodeFactory` + `NodeDialogFactory` 구현. 카테고리: "sql" |
+| `SparkExpressionNodeFactory.xml` | 노드 설명 문서 |
+| `SparkExpressionNodeModel.java` | 노드 모델. `isNodeConfigured()` 체크, flow variable 치환, 순차적 `withColumn()` + `expr()` 실행 |
+| `SparkExpressionSettings.java` | 핵심 설정 (expressions[], outputModes[], columnNames[], configured 플래그) |
+| `SparkExpressionWebNodeDialog.java` | `NodeDialog` 구현. `ScriptingNodeSettingsService` 기반, RPC 데이터 서비스 제공, 입력 컬럼/Flow Variable/Function Catalog 초기 데이터 전달 |
+| `SparkExpressionWebSettings.java` | `GenericSettingsIOManager` 구현. WebUI JSON ↔ NodeSettings 브릿지 |
+| `SparkExpressionRpcService.java` | JSON-RPC 서비스. Evaluate (미리보기) + Input Table 미리보기. `$${varName}` flow variable 치환 지원 |
+| `SparkExpressionJobInput.java` | Job 입력 VO |
+| `SparkExpressionJobOutput.java` | Job 출력 VO (previewData 포함) |
+| `icon.png` | 노드 아이콘 |
+
+### Vue.js 프론트엔드 (`js-src/`)
+
+| 파일/디렉토리 | 역할 |
+|--------------|------|
+| `src/App.vue` | 메인 앱. 3-panel (enlarged) / compact 레이아웃 |
+| `src/components/ExpressionEditors.vue` | 다중 표현식 에디터 (Add/Remove/Up/Down) + Output Mode + Column Name |
+| `src/components/InputColumns.vue` | 입력 컬럼 목록 (더블클릭으로 에디터에 삽입) |
+| `src/components/FlowVariables.vue` | Flow Variable 목록 (`$${varName}` 형태로 삽입) |
+| `src/components/FunctionCatalog.vue` | 함수 카탈로그 (카테고리별 함수 목록, 더블클릭 삽입) |
+| `src/components/OutputPreview.vue` | 출력 미리보기 (Output/Input 탭, Evaluate 버튼) |
+| `src/knimeService.js` | KNIME 통신 브릿지 (`@knime/ui-extension-service` 사용). DialogService dirty-state 추적 |
+| `dist/` | Vite 빌드 결과물 (KNIME에서 직접 사용) |
+
+### Spark Job 레이어 (spark3_4 / spark3_5 동일 구조)
+
+| 파일 | 역할 |
+|------|------|
+| `ExpressionJob.java` | `SparkJob` 구현. `validateOnly=true`: `showString(10, 40, false)` 미리보기 반환. `validateOnly=false`: 결과 DataFrame 저장 |
+| `ExpressionJobRunFactory.java` | Job 실행 팩토리 |
+| `ExpressionJobRunFactoryProvider.java` | SPI 프로바이더 |
+
+---
+
+## 포트 구성
+
+| 포트 | 방향 | 타입 | 설명 |
+|------|------|------|------|
+| 0 | 입력 | `SparkDataPortObject` | 표현식 적용 대상 Spark DataFrame |
+| 0 | 출력 | `SparkDataPortObject` | 표현식 적용된 결과 DataFrame |
+
+---
+
+## 설정 항목
+
+| Config Key | 타입 | 기본값 | 설명 |
+|------------|------|--------|------|
+| `expressions` | String[] | [""] | Spark SQL 표현식 목록 |
+| `outputModes` | String[] | ["APPEND"] | 각 표현식의 출력 모드 (APPEND: 새 컬럼 추가, REPLACE: 기존 컬럼 교체) |
+| `columnNames` | String[] | ["new_column"] | 각 표현식의 출력 컬럼명 |
+| `configured` | Boolean | false | OK 버튼 클릭 여부 (최초 사용 시 경고 표시용) |
+
+---
+
+## 주요 기능
+
+### Evaluate First 10 Rows
+- 다이얼로그에서 "Evaluate" 버튼 클릭 시 실제 Spark 클러스터에서 표현식을 실행하고 결과 10행을 미리보기
+- `SparkExpressionRpcService.evaluateExpressions()` → Spark Job (`validateOnly=true`) → `showString(10, 40, false)` 반환
+- Flow variable `$${varName}` 플레이스홀더가 실제 값으로 치환됨
+
+### Apply / Apply & Execute 버튼
+- `DialogService.registerSettings("model")` → `SettingState.setValue()` 패턴으로 dirty-state 추적
+- 설정 변경 시 `markDirty()` 호출 → Apply 버튼 활성화
+
+### Flow Variable 치환
+- `$${varName}` 형식으로 표현식에 flow variable 삽입
+- STRING → `'value'` (SQL 쿼팅), INTEGER/DOUBLE → 숫자 리터럴
+
+### 유효성 검증
+- 빈 표현식 체크
+- 빈 컬럼명 체크
+- 중복 컬럼명 체크
+- REPLACE 모드 시 기존 컬럼 존재 여부 (NodeModel configure에서)
+- APPEND 모드 시 기존 컬럼명 충돌 (NodeModel configure에서)
+
+---
+
+## 테스트 완료 항목
+
+- [x] 단일/다중 표현식 APPEND 모드 → 정상
+- [x] REPLACE 모드 → 기존 컬럼 교체 정상
+- [x] Evaluate First 10 Rows → Spark 클러스터에서 실행 후 미리보기 표시
+- [x] Apply / Apply & Execute 버튼 활성화 → 설정 변경 시 정상 활성화
+- [x] Flow Variable 치환 → `$${varName}` 정상 치환
+- [x] 빈 표현식/컬럼명 → 프론트엔드 검증 에러
+- [x] 중복 컬럼명 → 프론트엔드 검증 에러
+- [x] Input Table 미리보기 → 정상
+- [x] 설정 저장/재로드 → 설정값 유지
+- [x] 다이얼로그 OK 클릭 → 노드 설정 완료, 실행 정상
+
+---
+
+## Pull 받아서 사용하기
+
+이 저장소를 pull 받으면 Spark Expression 노드를 포함한 모든 노드가 바로 사용 가능합니다.
+
+### 필요한 파일 (Expression 노드 관련)
+
+**dx.node 플러그인:**
+- `org.knime.bigdata.spark_dx.node/src/.../sql/expression/` — Java 소스 전체 (10개 파일)
+- `org.knime.bigdata.spark_dx.node/js-src/` — Vue.js 프론트엔드 (src + dist)
+- `org.knime.bigdata.spark_dx.node/META-INF/MANIFEST.MF` — `org.knime.scripting.editor` 의존성 포함
+- `org.knime.bigdata.spark_dx.node/build.properties` — `js-src/dist/` 포함
+- `org.knime.bigdata.spark_dx.node/src/.../DxSparkNodeFactoryProvider.java` — `SparkExpressionNodeFactory` 등록
+
+**spark3_4 플러그인:**
+- `org.knime.bigdata_spark3_4_dx/src/.../sql/expression/` — ExpressionJob + Factory + Provider (3개 파일)
+- `org.knime.bigdata_spark3_4_dx/META-INF/MANIFEST.MF` — expression 패키지 export
+- `org.knime.bigdata_spark3_4_dx/plugin.xml` — ExpressionJobRunFactoryProvider 등록
+
+**spark3_5 플러그인:**
+- `org.knime.bigdata_spark3_5_dx/src/.../sql/expression/` — ExpressionJob + Factory + Provider (3개 파일)
+- `org.knime.bigdata_spark3_5_dx/META-INF/MANIFEST.MF` — expression 패키지 export
+- `org.knime.bigdata_spark3_5_dx/plugin.xml` — ExpressionJobRunFactoryProvider 등록
+
+### Eclipse에서 사용하기
+1. `git pull` 으로 최신 소스 받기
+2. Eclipse에서 3개 플러그인 프로젝트 Import (이미 import 되어있으면 Refresh)
+3. `js-src/dist/`가 이미 빌드되어 있으므로 npm 설치 불필요
+4. Run As > Eclipse Application → KNIME AP 실행 → Spark 카테고리에서 "Spark Expression (Hyim)" 노드 사용
 
 ---
 ---
