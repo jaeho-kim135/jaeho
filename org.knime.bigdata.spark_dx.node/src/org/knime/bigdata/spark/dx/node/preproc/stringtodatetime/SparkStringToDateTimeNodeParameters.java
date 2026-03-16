@@ -24,7 +24,7 @@ import org.knime.node.parameters.widget.choices.filter.ColumnFilter;
 import org.knime.node.parameters.widget.choices.filter.ColumnFilterWidget;
 
 /**
- * Node parameters (WebUI dialog settings) for the Spark String to Date&Time node.
+ * Node parameters (WebUI dialog settings) for the Spark String to Date&amp;Time node.
  */
 @SuppressWarnings("restriction")
 class SparkStringToDateTimeNodeParameters implements NodeParameters {
@@ -33,7 +33,7 @@ class SparkStringToDateTimeNodeParameters implements NodeParameters {
 
     interface DialogSections {
         @Section(title = "Column Selection",
-            description = "Select the string columns to convert to date&time.")
+            description = "Select the string columns to convert to date&amp;time.")
         interface ColumnSelectionSection {}
 
         @Section(title = "Type and Format",
@@ -46,8 +46,8 @@ class SparkStringToDateTimeNodeParameters implements NodeParameters {
     enum OutputTypeOption {
         DATE("Date"),
         TIME("Time"),
-        DATE_TIME("Date&Time"),
-        ZONED_DATE_TIME("Zoned Date&Time");
+        DATE_TIME("Date&amp;Time"),
+        ZONED_DATE_TIME("Zoned Date&amp;Time");
 
         private final String m_label;
 
@@ -204,14 +204,14 @@ class SparkStringToDateTimeNodeParameters implements NodeParameters {
 
     @Layout(DialogSections.ColumnSelectionSection.class)
     @Widget(title = "Included Columns",
-        description = "String columns to convert to date&time.")
+        description = "String columns to convert to date&amp;time.")
     @ColumnFilterWidget(choicesProvider = SparkStringColumnChoicesProvider.class)
     @Persistor(IncludedColumnsPersistor.class)
     ColumnFilter m_inclCols = new ColumnFilter();
 
     @Layout(DialogSections.TypeAndFormatSection.class)
     @Widget(title = "Output type",
-        description = "The type of the output columns: Date, Time, Date&Time, or Zoned Date&Time.")
+        description = "The type of the output columns: Date, Time, Date&amp;Time, or Zoned Date&amp;Time.")
     @ValueSwitchWidget
     @Persistor(OutputTypePersistor.class)
     OutputTypeOption m_outputType = OutputTypeOption.DATE;
@@ -221,7 +221,7 @@ class SparkStringToDateTimeNodeParameters implements NodeParameters {
         description = """
             A format string that defines the expected format of the input strings. \
             Common examples: "yyyy-MM-dd" for dates, "HH:mm:ss" for times, \
-            "yyyy-MM-dd HH:mm:ss" for date&time. \
+            "yyyy-MM-dd HH:mm:ss" for date&amp;time. \
             Uses Java DateTimeFormatter pattern syntax.""")
     @Persistor(FormatPersistor.class)
     String m_format = "yyyy-MM-dd";

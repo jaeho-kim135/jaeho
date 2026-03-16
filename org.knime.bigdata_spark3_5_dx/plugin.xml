@@ -9,6 +9,9 @@
             ProviderClass="org.knime.bigdata.spark3_5.dx.jobs.sql.multiquery.MultiQueryJobRunFactoryProvider">
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
+            ProviderClass="org.knime.bigdata.spark3_5.dx.jobs.sql.expression.ExpressionJobRunFactoryProvider">
+      </JobRunFactoryProvider>
+      <JobRunFactoryProvider
             ProviderClass="org.knime.bigdata.spark3_5.dx.jobs.preproc.stringtonumber.StringToNumberJobRunFactoryProvider">
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
@@ -16,9 +19,6 @@
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
             ProviderClass="org.knime.bigdata.spark3_5.dx.jobs.preproc.stringtodatetime.StringToDateTimeJobRunFactoryProvider">
-      </JobRunFactoryProvider>
-      <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_5.dx.jobs.sql.expression.ExpressionJobRunFactoryProvider">
       </JobRunFactoryProvider>
    </extension>
    <extension point="org.knime.bigdata.spark.core.SparkJarProvider">

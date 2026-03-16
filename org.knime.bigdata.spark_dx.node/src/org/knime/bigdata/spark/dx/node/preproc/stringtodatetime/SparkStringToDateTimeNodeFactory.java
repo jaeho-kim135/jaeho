@@ -17,9 +17,9 @@ public final class SparkStringToDateTimeNodeFactory
     implements SparkNodeFactory<SparkStringToDateTimeNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark String to Date&Time(Hyim)")
+        .name("Spark String to Date&Time (Hyim)")
         .icon("stringtotime.png")
-        .shortDescription("Parses date and/or time strings into date&time columns in a Spark DataFrame.")
+        .shortDescription("Parses date and/or time strings into date&amp;time columns in a Spark DataFrame.")
         .fullDescription("""
             <p>Parses strings in selected columns and converts them to date&amp;time columns \
             using Spark DataFrame operations. You can choose the output type (Date, Time, \
@@ -38,7 +38,7 @@ public final class SparkStringToDateTimeNodeFactory
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame containing string columns to convert.")
         .addOutputPort("Converted Data", SparkDataPortObject.TYPE,
-            "Spark DataFrame with selected columns converted to date&time type.")
+            "Spark DataFrame with selected columns converted to date&amp;time type.")
         .keywords("convert", "date", "time", "string", "parse", "spark", "datetime", "timestamp")
         .build();
 

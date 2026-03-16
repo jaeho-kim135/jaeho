@@ -1,7 +1,10 @@
 package org.knime.bigdata.spark3_4.dx.jobs.preproc.stringtonumber;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.apache.spark.SparkContext;
@@ -53,67 +56,52 @@ public class StringToNumberJob implements SparkJob<SparkStringToNumberJobInput, 
             default -> DataTypes.DoubleType;
         };
 
-        Dataset<Row> result = inputFrame;
+        final Set<String> targetSet = new HashSet<>(Arrays.asList(columns));
+        final String[] allColumns = inputFrame.columns();
 
-        // Process each column
-        for (final String colName : columns) {
-            // Build the transformation chain as a single column expression
-
-            // Step 1: Blank -> null
-            Column expr = when(trim(col(colName)).equalTo(lit("")), lit(null).cast(DataTypes.StringType))
-                .otherwise(col(colName));
-
-            // Step 2: Thousands separator removal (if configured)
-            if (!thousandsSep.isEmpty()) {
-                expr = regexp_replace(expr, Pattern.quote(thousandsSep), "");
+        // Build all column expressions in a single select() to avoid
+        // repeated withColumn() calls which can cause column resolution issues
+        final List<Column> selectCols = new ArrayList<>();
+        for (final String c : allColumns) {
+            if (targetSet.contains(c)) {
+                selectCols.add(buildConversionExpr(c, thousandsSep, decimalSep,
+                    parseType, genericParse, sparkType).alias(c));
+            } else {
+                selectCols.add(col("`" + c + "`"));
             }
+        }
 
-            // Step 3: Decimal separator handling (for non-"." separators when target needs decimal)
-            final boolean needsDecimalHandling = !decimalSep.isEmpty() && !".".equals(decimalSep)
-                && ("DOUBLE".equals(parseType));
-            if (needsDecimalHandling) {
-                // 3a: If value contains ".", it's ambiguous -> null
-                final Column containsDot = expr.contains(".");
-                // 3b: Replace custom decimal separator with "."
-                final Column replaced = regexp_replace(expr, Pattern.quote(decimalSep), ".");
-                expr = when(containsDot, lit(null).cast(DataTypes.StringType))
-                    .otherwise(replaced);
+        Dataset<Row> result;
+
+        if (failOnError) {
+            // First pass: create DataFrame with both original and converted columns
+            final List<Column> validationCols = new ArrayList<>();
+            for (final String c : allColumns) {
+                validationCols.add(col("`" + c + "`"));
+                if (targetSet.contains(c)) {
+                    validationCols.add(buildConversionExpr(c, thousandsSep, decimalSep,
+                        parseType, genericParse, sparkType).alias("_stn_conv_" + c));
+                    validationCols.add(
+                        trim(col("`" + c + "`")).isNotNull()
+                            .and(trim(col("`" + c + "`")).notEqual(lit("")))
+                            .alias("_stn_valid_" + c));
+                }
             }
+            final Dataset<Row> validFrame =
+                inputFrame.select(validationCols.toArray(new Column[0]));
 
-            // Step 4: Suffix check (when genericParse=false, reject d/D/f/F suffixes)
-            if (!genericParse) {
-                final Column hasSuffix = expr.rlike("(?i).*[df]$");
-                expr = when(hasSuffix, lit(null).cast(DataTypes.StringType))
-                    .otherwise(expr);
-            }
-
-            // Step 5: Trim whitespace
-            expr = trim(expr);
-
-            // Step 6: Cast to target type (Spark returns null for invalid values)
-            expr = expr.cast(sparkType);
-
-            if (failOnError) {
-                // Save original string value and add validity marker before converting
-                final String origCol = "_stn_orig_" + colName;
-                final String validCol = "_stn_valid_" + colName;
-                result = result.withColumn(origCol, col(colName));
-                result = result.withColumn(validCol,
-                    trim(col(colName)).isNotNull().and(trim(col(colName)).notEqual(lit(""))));
-
-                // Replace the original column with the converted value
-                result = result.withColumn(colName, expr);
-
-                // Step 7: Check for conversion failures
-                final long failCount = result
-                    .filter(col(validCol).equalTo(lit(true)).and(col(colName).isNull()))
+            // Check each target column for conversion failures
+            for (final String colName : columns) {
+                final long failCount = validFrame
+                    .filter(col("_stn_valid_" + colName).equalTo(lit(true))
+                        .and(col("_stn_conv_" + colName).isNull()))
                     .count();
 
                 if (failCount > 0) {
-                    // Collect sample failing values from the saved original column
-                    final List<Row> failingSamples = result
-                        .filter(col(validCol).equalTo(lit(true)).and(col(colName).isNull()))
-                        .select(col(origCol))
+                    final List<Row> failingSamples = validFrame
+                        .filter(col("_stn_valid_" + colName).equalTo(lit(true))
+                            .and(col("_stn_conv_" + colName).isNull()))
+                        .select(col("`" + colName + "`"))
                         .limit(3)
                         .collectAsList();
 
@@ -126,18 +114,69 @@ public class StringToNumberJob implements SparkJob<SparkStringToNumberJobInput, 
                         + " rows in column '" + colName + "'. Sample failing values: "
                         + String.join(", ", sampleValues));
                 }
-
-                // Remove temp columns
-                result = result.drop(origCol).drop(validCol);
-            } else {
-                // Simply replace the column
-                result = result.withColumn(colName, expr);
             }
+
+            // Final projection: pick converted columns for targets, originals for rest
+            final List<Column> finalCols = new ArrayList<>();
+            for (final String c : allColumns) {
+                if (targetSet.contains(c)) {
+                    finalCols.add(col("_stn_conv_" + c).alias(c));
+                } else {
+                    finalCols.add(col("`" + c + "`"));
+                }
+            }
+            result = validFrame.select(finalCols.toArray(new Column[0]));
+        } else {
+            // Simple case: single select with all transformations
+            result = inputFrame.select(selectCols.toArray(new Column[0]));
         }
 
         final String namedOutputObject = input.getFirstNamedOutputObject();
         namedObjects.addDataFrame(namedOutputObject, result);
         final IntermediateSpec outputSchema = TypeConverters.convertSpec(result.schema());
         return new SparkStringToNumberJobOutput(namedOutputObject, outputSchema);
+    }
+
+    /**
+     * Builds the conversion expression for a single column.
+     */
+    private static Column buildConversionExpr(final String colName, final String thousandsSep,
+            final String decimalSep, final String parseType, final boolean genericParse,
+            final org.apache.spark.sql.types.DataType sparkType) {
+
+        // Step 1: Blank -> null
+        Column expr = when(trim(col("`" + colName + "`")).equalTo(lit("")),
+                lit(null).cast(DataTypes.StringType))
+            .otherwise(col("`" + colName + "`"));
+
+        // Step 2: Thousands separator removal (if configured)
+        if (!thousandsSep.isEmpty()) {
+            expr = regexp_replace(expr, Pattern.quote(thousandsSep), "");
+        }
+
+        // Step 3: Decimal separator handling (for non-"." separators when target needs decimal)
+        final boolean needsDecimalHandling = !decimalSep.isEmpty() && !".".equals(decimalSep)
+            && ("DOUBLE".equals(parseType));
+        if (needsDecimalHandling) {
+            final Column containsDot = expr.contains(".");
+            final Column replaced = regexp_replace(expr, Pattern.quote(decimalSep), ".");
+            expr = when(containsDot, lit(null).cast(DataTypes.StringType))
+                .otherwise(replaced);
+        }
+
+        // Step 4: Suffix check (when genericParse=false, reject d/D/f/F suffixes)
+        if (!genericParse) {
+            final Column hasSuffix = expr.rlike("(?i).*[df]$");
+            expr = when(hasSuffix, lit(null).cast(DataTypes.StringType))
+                .otherwise(expr);
+        }
+
+        // Step 5: Trim whitespace
+        expr = trim(expr);
+
+        // Step 6: Cast to target type (Spark returns null for invalid values)
+        expr = expr.cast(sparkType);
+
+        return expr;
     }
 }

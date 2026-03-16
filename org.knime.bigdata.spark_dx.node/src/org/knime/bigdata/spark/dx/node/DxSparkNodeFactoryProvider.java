@@ -21,9 +21,9 @@ public class DxSparkNodeFactoryProvider extends DefaultSparkNodeFactoryProvider 
         super(AllVersionCompatibilityChecker.INSTANCE,
             new SparkUnpivotNodeFactory(),
             new SparkMultiQueryNodeFactory(),
+            new SparkExpressionNodeFactory(),
             new SparkStringToNumberNodeFactory(),
             new SparkNumberToStringNodeFactory(),
-            new SparkStringToDateTimeNodeFactory(),
-            new SparkExpressionNodeFactory());
+            new SparkStringToDateTimeNodeFactory());
     }
 }
