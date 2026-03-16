@@ -9,7 +9,7 @@
 | Spark Expression (Hyim) | `sql.expression` | WebUI (커스텀 Vue.js) | 테스트 완료 |
 | Spark StringToNumber (Hyim) | `preproc.stringtonumber` | WebUI (NodeParameters) | 테스트 완료 |
 | Spark NumberToString (Hyim) | `preproc.numbertostring` | WebUI (NodeParameters) | 테스트 완료 |
-| Spark StringToDateTime (Hyim) | `preproc.stringtodatetime` | Swing (DataAwareNodeDialogPane) | 테스트 완료 |
+| Spark String to Date&Time (Hyim) | `preproc.stringtodatetime` | WebUI (NodeParameters) | 테스트 완료 |
 
 ---
 ---
@@ -666,6 +666,417 @@ MultiQueryJob.runJob() (Spark 측)
 - [x] 특수문자 컬럼명 → 백틱 이스케이프 정상
 - [x] 처음 사용 시 → syncFilterModel로 정상 동작
 - [x] 선택 컬럼 요약 표시 → 정상
+
+---
+---
+
+# Spark String to Number Node (신규 개발)
+
+## 개요
+
+String 컬럼을 숫자 타입(Integer, Double, Long)으로 변환하는 노드.
+소수점 구분자, 천 단위 구분자, d/D/f/F 접미사 처리 등을 지원한다.
+
+- **노드명**: Spark String to Number(Hyim)
+- **최소 Spark 버전**: 3.4
+- **노드 타입**: Manipulator
+- **다이얼로그**: WebUI (`WebUINodeFactory` + `NodeParameters`)
+
+---
+
+## 플러그인 구조
+
+| 플러그인 | 역할 |
+|----------|------|
+| `org.knime.bigdata.spark_dx.node` | 노드 UI (Factory, Model, Settings, Parameters, JobInput) |
+| `org.knime.bigdata_spark3_4_dx` | Spark 3.4용 StringToNumberJob 구현 |
+| `org.knime.bigdata_spark3_5_dx` | Spark 3.5용 StringToNumberJob 구현 |
+
+---
+
+## 클래스 구조
+
+### Node 레이어 (`org.knime.bigdata.spark.dx.node.preproc.stringtonumber`)
+
+| 파일 | 역할 |
+|------|------|
+| `SparkStringToNumberNodeFactory.java` | `WebUINodeFactory` + `SparkNodeFactory`. 카테고리: "row" |
+| `SparkStringToNumberNodeModel.java` | 노드 모델. configure에서 컬럼/구분자 유효성 검증, execute에서 Spark Job 실행 |
+| `SparkStringToNumberSettings.java` | 설정 (include, parse_type, decimal_separator, thousands_separator, generic_parse, fail_on_error) |
+| `SparkStringToNumberNodeParameters.java` | WebUI 다이얼로그 (2섹션: Column Selection, Parsing Options) |
+| `SparkStringToNumberJobInput.java` | Job 입력 VO. `@SparkClass` |
+
+### Spark Job 레이어 (spark3_4 / spark3_5 동일 구조)
+
+| 파일 | 역할 |
+|------|------|
+| `StringToNumberJob.java` | `SparkJob` 구현. 단일 `select()`로 모든 컬럼 변환. failOnError 시 검증 패스 포함 |
+| `StringToNumberJobRunFactory.java` | Job 실행 팩토리 |
+| `StringToNumberJobRunFactoryProvider.java` | SPI 프로바이더 |
+
+---
+
+## 포트 구성
+
+| 포트 | 방향 | 타입 | 설명 |
+|------|------|------|------|
+| 0 | 입력 | `SparkDataPortObject` | 변환 대상 Spark DataFrame |
+| 0 | 출력 | `SparkDataPortObject` | 숫자 타입으로 변환된 결과 DataFrame |
+
+---
+
+## 설정 항목
+
+| Config Key | 타입 | 기본값 | 설명 |
+|------------|------|--------|------|
+| `include` | ColumnFilter | [] | 변환 대상 String 컬럼 |
+| `parse_type` | String | "DOUBLE" | 대상 숫자 타입 (INTEGER / DOUBLE / LONG) |
+| `decimal_separator` | String | "." | 소수점 구분자 (빈값 = 기본 ".") |
+| `thousands_separator` | String | "" | 천 단위 구분자 (빈값 = 비활성) |
+| `generic_parse` | Boolean | false | d/D/f/F 접미사 허용 여부 |
+| `fail_on_error` | Boolean | false | 변환 실패 시 노드 에러 |
+
+---
+
+## WebUI NodeParameters 구조
+
+### 섹션 레이아웃
+
+```
+Section 1: Column Selection
+  m_inclCols: ColumnFilterWidget (String 타입 컬럼만 표시)
+
+Section 2: Parsing Options
+  m_parseType: ValueSwitchWidget (INTEGER / DOUBLE / LONG)
+  m_decimalSep: String 필드 (기본 ".")
+  m_thousandsSep: String 필드 (기본 "")
+  m_genericParse: Boolean 체크박스
+  m_failOnError: Boolean 체크박스
+```
+
+### Persistors
+- `IncludedColumnsPersistor extends LegacyColumnFilterPersistor` — 구 InclList 포맷 하위 호환
+- `ParseTypePersistor` — ParseTypeOption enum <-> String 매핑
+
+### ColumnChoicesProvider
+- `SparkStringColumnChoicesProvider` — `StringValue.class` 호환 컬럼만 필터
+
+---
+
+## Spark Job 변환 파이프라인 (buildConversionExpr)
+
+단일 `select()` 호출로 모든 컬럼을 한 번에 변환 (반복 `withColumn()` 대신):
+
+```
+1. Blank Handling: 빈 문자열/공백 -> null
+2. Thousands Separator: 구분자 문자 제거 (regexp_replace)
+3. Decimal Separator: 커스텀 구분자 -> "." 변환 (DOUBLE 타입일 때)
+   - "."이 이미 포함된 값 + 커스텀 구분자 -> null (모호한 값)
+4. Suffix Check: genericParse=false면 d/D/f/F 접미사 -> null
+5. Trim: 앞뒤 공백 제거
+6. Cast: 대상 Spark 타입으로 캐스팅 (무효값 -> null)
+```
+
+### failOnError=true 모드
+
+3단계 검증:
+1. 검증 DataFrame 생성: 원본 + 변환값(`_stn_conv_`) + 유효성 플래그(`_stn_valid_`)
+2. 각 대상 컬럼별로 실패 행 수 카운트 (non-empty -> null 변환 = 실패)
+3. 실패 시 샘플 값 3개 수집 -> `KNIMESparkException` throw
+
+### failOnError=false 모드 (기본)
+
+단순 단일 패스: `select()`로 모든 변환 적용, 무효값은 null
+
+---
+
+## 유효성 검증
+
+| 검증 | 에러 메시지 |
+|------|------------|
+| 컬럼 미선택 | "No columns selected." |
+| 컬럼 미존재 | "Column 'X' not found in input table." |
+| 소수점 구분자 길이 | "Decimal separator must be at most one character." |
+| 천 단위 구분자 길이 | "Thousands separator must be at most one character." |
+| 구분자 동일 | "Decimal separator and thousands separator must be different." |
+
+---
+
+## 테스트 완료 항목
+
+- [x] INTEGER / DOUBLE / LONG 변환 -> 정상
+- [x] 소수점 구분자 변경 (쉼표 등) -> 정상
+- [x] 천 단위 구분자 제거 -> 정상
+- [x] d/D/f/F 접미사 허용/거부 -> 정상
+- [x] failOnError ON: 실패 시 샘플 값 포함 에러 -> 정상
+- [x] failOnError OFF: 무효값 null 처리 -> 정상
+- [x] 빈 문자열/공백 -> null 처리 -> 정상
+- [x] 설정 저장/재로드 -> 설정값 유지
+- [x] batch select() 방식으로 컬럼 해상도 문제 해결 -> 정상
+
+---
+---
+
+# Spark Number to String Node (신규 개발)
+
+## 개요
+
+숫자 컬럼(Integer, Long, Double)을 String 타입으로 변환하는 노드.
+가장 간단한 구조의 변환 노드.
+
+- **노드명**: Spark Number to String(Hyim)
+- **최소 Spark 버전**: 3.4
+- **노드 타입**: Manipulator
+- **다이얼로그**: WebUI (`WebUINodeFactory` + `NodeParameters`)
+
+---
+
+## 플러그인 구조
+
+| 플러그인 | 역할 |
+|----------|------|
+| `org.knime.bigdata.spark_dx.node` | 노드 UI (Factory, Model, Settings, Parameters, JobInput) |
+| `org.knime.bigdata_spark3_4_dx` | Spark 3.4용 NumberToStringJob 구현 |
+| `org.knime.bigdata_spark3_5_dx` | Spark 3.5용 NumberToStringJob 구현 |
+
+---
+
+## 클래스 구조
+
+### Node 레이어 (`org.knime.bigdata.spark.dx.node.preproc.numbertostring`)
+
+| 파일 | 역할 |
+|------|------|
+| `SparkNumberToStringNodeFactory.java` | `WebUINodeFactory` + `SparkNodeFactory`. 카테고리: "row" |
+| `SparkNumberToStringNodeModel.java` | 노드 모델. configure에서 컬럼 존재 검증, execute에서 Spark Job 실행 |
+| `SparkNumberToStringSettings.java` | 설정 (include만) |
+| `SparkNumberToStringNodeParameters.java` | WebUI 다이얼로그 (1섹션: Column Selection) |
+| `SparkNumberToStringJobInput.java` | Job 입력 VO. `@SparkClass` |
+
+### Spark Job 레이어 (spark3_4 / spark3_5 동일 구조)
+
+| 파일 | 역할 |
+|------|------|
+| `NumberToStringJob.java` | `SparkJob` 구현. `withColumn(col.cast(StringType))` 반복 |
+| `NumberToStringJobRunFactory.java` | Job 실행 팩토리 |
+| `NumberToStringJobRunFactoryProvider.java` | SPI 프로바이더 |
+
+---
+
+## 포트 구성
+
+| 포트 | 방향 | 타입 | 설명 |
+|------|------|------|------|
+| 0 | 입력 | `SparkDataPortObject` | 변환 대상 Spark DataFrame |
+| 0 | 출력 | `SparkDataPortObject` | String으로 변환된 결과 DataFrame |
+
+---
+
+## 설정 항목
+
+| Config Key | 타입 | 기본값 | 설명 |
+|------------|------|--------|------|
+| `include` | ColumnFilter | [] | 변환 대상 숫자 컬럼 |
+
+---
+
+## WebUI NodeParameters 구조
+
+```
+Section 1: Column Selection
+  m_inclCols: ColumnFilterWidget (DoubleValue 호환 컬럼만 표시)
+```
+
+### Persistors
+- `IncludedColumnsPersistor extends LegacyColumnFilterPersistor` — 구 InclList 포맷 하위 호환
+
+### ColumnChoicesProvider
+- `SparkNumericColumnChoicesProvider` — `DoubleValue.class` 호환 컬럼만 필터
+
+---
+
+## Spark Job 로직
+
+```java
+for (colName : columns) {
+    result = result.withColumn(colName, col(colName).cast(DataTypes.StringType));
+}
+```
+
+- 단순 `cast(StringType)` 반복
+- null 값은 null 유지
+- 별도 에러 처리 없음
+
+---
+
+## 유효성 검증
+
+| 검증 | 에러 메시지 |
+|------|------------|
+| 컬럼 미선택 | "No columns selected." |
+| 컬럼 미존재 | "Column 'X' not found in input table." |
+
+---
+
+## 테스트 완료 항목
+
+- [x] Integer / Double / Long -> String 변환 -> 정상
+- [x] null 값 유지 -> 정상
+- [x] 컬럼 미선택 -> 에러
+- [x] 설정 저장/재로드 -> 설정값 유지
+
+---
+---
+
+# Spark String to Date&Time Node (신규 개발)
+
+## 개요
+
+String 컬럼을 날짜/시간 타입(Date, Time, DateTime, Zoned DateTime)으로 변환하는 노드.
+Java DateTimeFormatter 패턴 문법을 사용하며, Locale 설정을 지원한다.
+
+- **노드명**: Spark String to Date&Time (Hyim)
+- **최소 Spark 버전**: 3.4
+- **노드 타입**: Manipulator
+- **다이얼로그**: WebUI (`WebUINodeFactory` + `NodeParameters`)
+
+---
+
+## 플러그인 구조
+
+| 플러그인 | 역할 |
+|----------|------|
+| `org.knime.bigdata.spark_dx.node` | 노드 UI (Factory, Model, Settings, Parameters, JobInput) |
+| `org.knime.bigdata_spark3_4_dx` | Spark 3.4용 StringToDateTimeJob 구현 |
+| `org.knime.bigdata_spark3_5_dx` | Spark 3.5용 StringToDateTimeJob 구현 |
+
+---
+
+## 클래스 구조
+
+### Node 레이어 (`org.knime.bigdata.spark.dx.node.preproc.stringtodatetime`)
+
+| 파일 | 역할 |
+|------|------|
+| `SparkStringToDateTimeNodeFactory.java` | `WebUINodeFactory` + `SparkNodeFactory`. 카테고리: "row" |
+| `SparkStringToDateTimeNodeModel.java` | 노드 모델. configure에서 컬럼/포맷 유효성 검증, execute에서 Spark Job 실행 |
+| `SparkStringToDateTimeSettings.java` | 설정 (include, format, output_type, locale, fail_on_error) |
+| `SparkStringToDateTimeNodeParameters.java` | WebUI 다이얼로그 (2섹션: Column Selection, Type and Format) |
+| `SparkStringToDateTimeJobInput.java` | Job 입력 VO. `@SparkClass` |
+
+### Spark Job 레이어 (spark3_4 / spark3_5 동일 구조)
+
+| 파일 | 역할 |
+|------|------|
+| `StringToDateTimeJob.java` | `SparkJob` 구현. 타입별 `to_date()` / `to_timestamp()` 적용 |
+| `StringToDateTimeJobRunFactory.java` | Job 실행 팩토리 |
+| `StringToDateTimeJobRunFactoryProvider.java` | SPI 프로바이더 |
+
+---
+
+## 포트 구성
+
+| 포트 | 방향 | 타입 | 설명 |
+|------|------|------|------|
+| 0 | 입력 | `SparkDataPortObject` | 변환 대상 Spark DataFrame |
+| 0 | 출력 | `SparkDataPortObject` | 날짜/시간 타입으로 변환된 결과 DataFrame |
+
+---
+
+## 설정 항목
+
+| Config Key | 타입 | 기본값 | 설명 |
+|------------|------|--------|------|
+| `include` | ColumnFilter | [] | 변환 대상 String 컬럼 |
+| `format` | String | "yyyy-MM-dd" | DateTimeFormatter 패턴 |
+| `output_type` | String | "DATE" | 출력 타입 (DATE / TIME / DATE_TIME / ZONED_DATE_TIME) |
+| `locale` | String | 시스템 기본 | Locale language tag (예: "en-US", "ko-KR") |
+| `fail_on_error` | Boolean | false | 변환 실패 시 노드 에러 |
+
+---
+
+## WebUI NodeParameters 구조
+
+### 섹션 레이아웃
+
+```
+Section 1: Column Selection
+  m_inclCols: ColumnFilterWidget (String 타입 컬럼만 표시)
+
+Section 2: Type and Format
+  m_outputType: ValueSwitchWidget (Date / Time / Date&Time / Zoned Date&Time)
+  m_format: String 필드 (DateTimeFormatter 패턴)
+  m_locale: String 필드 (언어 태그)
+  m_failOnError: Boolean 체크박스
+```
+
+### OutputTypeOption enum
+
+```java
+enum OutputTypeOption {
+    DATE("Date"),
+    TIME("Time"),
+    DATE_TIME("Date&Time"),
+    ZONED_DATE_TIME("Zoned Date&Time")
+}
+```
+
+### Persistors
+- `IncludedColumnsPersistor extends LegacyColumnFilterPersistor` — 구 InclList 포맷 하위 호환
+- `OutputTypePersistor` — OutputTypeOption enum <-> String 매핑
+- `FormatPersistor` — 포맷 문자열 저장/로드
+- `LocalePersistor` — locale language tag 저장/로드
+- `FailOnErrorPersistor` — boolean 저장/로드
+
+### ColumnChoicesProvider
+- `SparkStringColumnChoicesProvider` — `StringValue.class` 호환 컬럼만 필터
+
+---
+
+## Spark Job 변환 로직
+
+### 타입별 Spark SQL 함수
+
+| Output Type | Spark 함수 | 비고 |
+|-------------|-----------|------|
+| DATE | `to_date(col, format)` | DateType으로 변환 |
+| TIME | `to_timestamp(col, format)` | Spark에 Time 전용 타입 없음. epoch date(1970-01-01) 사용 |
+| DATE_TIME | `to_timestamp(col, format)` | TimestampType으로 변환 |
+| ZONED_DATE_TIME | `to_timestamp(col, format)` | Spark 내부적으로 timezone 미지원 |
+
+### failOnError=true 모드
+
+1. 원본 값을 임시 컬럼(`_stdt_orig_`)에 저장
+2. 변환 적용
+3. non-null/non-blank 원본인데 변환 결과가 null인 행 카운트
+4. 실패 시 샘플 값 3개 수집 -> `KNIMESparkException` throw
+5. 임시 컬럼 제거
+
+### failOnError=false 모드 (기본)
+
+직접 `withColumn()`으로 변환 적용, 파싱 실패 시 null
+
+---
+
+## 유효성 검증
+
+| 검증 | 에러 메시지 |
+|------|------------|
+| 컬럼 미선택 | "No columns selected." |
+| 컬럼 미존재 | "Column 'X' not found in input table." |
+| 포맷 비어있음 | "Format string must not be empty." |
+
+---
+
+## 테스트 완료 항목
+
+- [x] Date 변환 (yyyy-MM-dd) -> 정상
+- [x] Time 변환 (HH:mm:ss) -> 정상
+- [x] DateTime 변환 (yyyy-MM-dd HH:mm:ss) -> 정상
+- [x] Locale 변경 -> 정상
+- [x] failOnError ON: 실패 시 에러 -> 정상
+- [x] failOnError OFF: 파싱 실패 -> null -> 정상
+- [x] 설정 저장/재로드 -> 설정값 유지
 
 ---
 
