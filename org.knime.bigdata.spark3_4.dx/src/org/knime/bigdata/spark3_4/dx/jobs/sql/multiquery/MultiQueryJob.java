@@ -2,6 +2,7 @@ package org.knime.bigdata.spark3_4.dx.jobs.sql.multiquery;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -73,6 +74,9 @@ public class MultiQueryJob implements SparkJob<SparkMultiQueryJobInput, SparkMul
             final Set<String> targetSet = new HashSet<>(Arrays.asList(targetColumns));
             final String[] allColumns = inputFrame.columns();
 
+            // Collect all existing column names for dedup
+            final Set<String> usedNames = new LinkedHashSet<>(Arrays.asList(allColumns));
+
             final StringBuilder selectClause = new StringBuilder();
             for (int i = 0; i < allColumns.length; i++) {
                 if (selectClause.length() > 0) {
@@ -86,7 +90,16 @@ public class MultiQueryJob implements SparkJob<SparkMultiQueryJobInput, SparkMul
                         selectClause.append("`").append(col).append("`, ");
                     }
                     final String expr = sqlExpression.replace(PLACEHOLDER, "`" + col + "`");
-                    final String alias = outputPattern.replace(PLACEHOLDER, col);
+                    String alias = outputPattern.replace(PLACEHOLDER, col);
+                    // Auto-dedup: if alias conflicts with an existing column, append _1, _2, ...
+                    if (keepOriginal && usedNames.contains(alias)) {
+                        int suffix = 1;
+                        while (usedNames.contains(alias + "_" + suffix)) {
+                            suffix++;
+                        }
+                        alias = alias + "_" + suffix;
+                    }
+                    usedNames.add(alias);
                     selectClause.append(expr).append(" AS `").append(alias).append("`");
                 } else {
                     selectClause.append("`").append(col).append("`");

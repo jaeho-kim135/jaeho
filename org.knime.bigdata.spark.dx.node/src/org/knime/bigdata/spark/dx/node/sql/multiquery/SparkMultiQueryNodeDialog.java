@@ -60,7 +60,7 @@ public final class SparkMultiQueryNodeDialog extends DataAwareNodeDialogPane {
     private static final Color COLOR_CHECK_BG = new Color(255, 204, 0);
     private static final String PH = SparkMultiQuerySettings.COLUMN_PLACEHOLDER;
 
-    // --- Expression templates ---
+    // --- Expression templates (11 presets) ---
     private static final String[][] TEMPLATES = {
         {"(Custom)", ""},
         {"Cast to String", "string(" + PH + ")"},
@@ -69,10 +69,11 @@ public final class SparkMultiQueryNodeDialog extends DataAwareNodeDialogPane {
         {"Uppercase", "UPPER(" + PH + ")"},
         {"Lowercase", "LOWER(" + PH + ")"},
         {"Trim", "TRIM(" + PH + ")"},
-        {"Replace NULL (empty string)", "COALESCE(" + PH + ", '')"},
-        {"Replace NULL (zero)", "COALESCE(" + PH + ", 0)"},
-        {"Parse Date (yyyyMMdd)", "TO_DATE(" + PH + ", 'yyyyMMdd')"},
-        {"Regex Replace", "REGEXP_REPLACE(" + PH + ", 'pattern', 'replacement')"},
+        {"Replace NULL with 0", "COALESCE(" + PH + ", 0)"},
+        {"Replace NULL with empty string", "COALESCE(" + PH + ", '')"},
+        {"Parse Date (yyyyMMdd)", "TO_DATE(string(" + PH + "), 'yyyyMMdd')"},
+        {"Regex Replace (non-digits)", "REGEXP_REPLACE(" + PH + ", '[^0-9]', '')"},
+        {"Round to 2 decimals", "ROUND(" + PH + ", 2)"},
     };
 
     // --- Settings models ---
@@ -85,10 +86,10 @@ public final class SparkMultiQueryNodeDialog extends DataAwareNodeDialogPane {
     private final DialogComponentColumnFilter m_targetColFilter =
         new DialogComponentColumnFilter(m_targetColumns, 0, false);
     private final JComboBox<String> m_templateCombo = new JComboBox<>();
-    private final JTextArea m_sqlTextArea = new JTextArea(3, 40);
+    private final JTextArea m_sqlTextArea = new JTextArea(6, 40);
     private final JCheckBox m_keepOriginalCheck = new JCheckBox("Keep original columns (add transformed as new columns)");
     private final JTextField m_outputPatternField = new JTextField(PH, 20);
-    private final JTextArea m_previewArea = new JTextArea(3, 40);
+    private final JTextArea m_previewArea = new JTextArea(4, 40);
     private final JTextArea m_selectedColsArea = new JTextArea(2, 40);
     private final JButton m_checkButton = new JButton("Check");
     private final JTextArea m_validationArea = new JTextArea(6, 40);
@@ -142,16 +143,16 @@ public final class SparkMultiQueryNodeDialog extends DataAwareNodeDialogPane {
         m_sqlTextArea.setLineWrap(true);
         m_sqlTextArea.setWrapStyleWord(true);
         m_sqlTextArea.getDocument().addDocumentListener(new DocumentListener() {
-            @Override public void insertUpdate(DocumentEvent e) { onExpressionChanged(); }
-            @Override public void removeUpdate(DocumentEvent e) { onExpressionChanged(); }
-            @Override public void changedUpdate(DocumentEvent e) { onExpressionChanged(); }
+            @Override public void insertUpdate(final DocumentEvent e) { onExpressionChanged(); }
+            @Override public void removeUpdate(final DocumentEvent e) { onExpressionChanged(); }
+            @Override public void changedUpdate(final DocumentEvent e) { onExpressionChanged(); }
         });
 
         // Output pattern field listener
         m_outputPatternField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override public void insertUpdate(DocumentEvent e) { updatePreview(); }
-            @Override public void removeUpdate(DocumentEvent e) { updatePreview(); }
-            @Override public void changedUpdate(DocumentEvent e) { updatePreview(); }
+            @Override public void insertUpdate(final DocumentEvent e) { updatePreview(); }
+            @Override public void removeUpdate(final DocumentEvent e) { updatePreview(); }
+            @Override public void changedUpdate(final DocumentEvent e) { updatePreview(); }
         });
 
         // Keep original checkbox listener
@@ -178,11 +179,11 @@ public final class SparkMultiQueryNodeDialog extends DataAwareNodeDialogPane {
         m_validationArea.setOpaque(false);
         m_validationArea.setBorder(null);
 
-        // --- Build column selection tab ---
+        // --- Build tabs ---
         addTab("Column Selection", m_targetColFilter.getComponentPanel());
-
-        // --- Build expression & options tab ---
-        addTab("Expression & Options", buildExpressionPanel());
+        addTab("Expression", buildExpressionPanel());
+        addTab("Options", buildOptionsPanel());
+        addTab("Validation", buildValidationPanel());
     }
 
     private JPanel buildExpressionPanel() {
@@ -194,16 +195,18 @@ public final class SparkMultiQueryNodeDialog extends DataAwareNodeDialogPane {
         gbc.gridy = 0;
         gbc.weightx = 1.0;
 
-        // --- Selected columns info ---
+        // --- Target Columns info ---
         final JPanel colInfoPanel = new JPanel(new BorderLayout());
         colInfoPanel.setBorder(BorderFactory.createTitledBorder("Target Columns"));
         final JScrollPane colInfoScroll = new JScrollPane(m_selectedColsArea);
-        colInfoScroll.setPreferredSize(new Dimension(400, 50));
+        colInfoScroll.setPreferredSize(new Dimension(400, 52));
         colInfoPanel.add(colInfoScroll, BorderLayout.CENTER);
         panel.add(colInfoPanel, gbc);
 
         // --- SQL Expression section ---
         gbc.gridy++;
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.weighty = 1.0;
         final JPanel exprPanel = new JPanel(new GridBagLayout());
         exprPanel.setBorder(BorderFactory.createTitledBorder("SQL Expression"));
         final GridBagConstraints egbc = new GridBagConstraints();
@@ -223,7 +226,7 @@ public final class SparkMultiQueryNodeDialog extends DataAwareNodeDialogPane {
         egbc.fill = GridBagConstraints.BOTH;
         egbc.weighty = 1.0;
         final JScrollPane sqlScroll = new JScrollPane(m_sqlTextArea);
-        sqlScroll.setPreferredSize(new Dimension(400, 70));
+        sqlScroll.setPreferredSize(new Dimension(400, 100));
         exprPanel.add(sqlScroll, egbc);
 
         egbc.gridy++;
@@ -235,13 +238,26 @@ public final class SparkMultiQueryNodeDialog extends DataAwareNodeDialogPane {
 
         panel.add(exprPanel, gbc);
 
-        // --- Options section ---
-        gbc.gridy++;
+        return panel;
+    }
+
+    private JPanel buildOptionsPanel() {
+        final JPanel panel = new JPanel(new GridBagLayout());
+        final GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(4, 6, 4, 6);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 1.0;
+
+        // --- Output Settings ---
         final JPanel optPanel = new JPanel(new GridBagLayout());
-        optPanel.setBorder(BorderFactory.createTitledBorder("Options"));
+        optPanel.setBorder(BorderFactory.createTitledBorder("Output Settings"));
         final GridBagConstraints ogbc = new GridBagConstraints();
         ogbc.insets = new Insets(3, 5, 3, 5);
         ogbc.anchor = GridBagConstraints.WEST;
+        ogbc.fill = GridBagConstraints.HORIZONTAL;
+        ogbc.weightx = 1.0;
         ogbc.gridx = 0;
         ogbc.gridy = 0;
         ogbc.gridwidth = 2;
@@ -253,7 +269,6 @@ public final class SparkMultiQueryNodeDialog extends DataAwareNodeDialogPane {
         optPanel.add(new JLabel("Output column pattern:"), ogbc);
         ogbc.gridx = 1;
         ogbc.weightx = 1.0;
-        ogbc.fill = GridBagConstraints.HORIZONTAL;
         optPanel.add(m_outputPatternField, ogbc);
 
         ogbc.gridx = 0;
@@ -267,30 +282,32 @@ public final class SparkMultiQueryNodeDialog extends DataAwareNodeDialogPane {
 
         panel.add(optPanel, gbc);
 
-        // --- SQL Preview section ---
+        // --- SQL Preview ---
         gbc.gridy++;
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.weighty = 1.0;
         final JPanel previewPanel = new JPanel(new BorderLayout());
         previewPanel.setBorder(BorderFactory.createTitledBorder("SQL Preview"));
         final JScrollPane previewScroll = new JScrollPane(m_previewArea);
-        previewScroll.setPreferredSize(new Dimension(400, 60));
+        previewScroll.setPreferredSize(new Dimension(400, 80));
         previewPanel.add(previewScroll, BorderLayout.CENTER);
         panel.add(previewPanel, gbc);
 
-        // --- Validation section ---
-        gbc.gridy++;
-        final JPanel validPanel = new JPanel(new BorderLayout(5, 5));
-        validPanel.setBorder(BorderFactory.createTitledBorder("Validation"));
-        validPanel.add(m_checkButton, BorderLayout.WEST);
-        final JScrollPane validScroll = new JScrollPane(m_validationArea);
-        validScroll.setPreferredSize(new Dimension(400, 120));
-        validScroll.setBorder(null);
-        validPanel.add(validScroll, BorderLayout.CENTER);
-        panel.add(validPanel, gbc);
+        return panel;
+    }
 
-        // Push content to top
-        gbc.gridy++;
-        gbc.weighty = 1.0;
-        panel.add(new JPanel(), gbc);
+    private JPanel buildValidationPanel() {
+        final JPanel panel = new JPanel(new BorderLayout(5, 5));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        final JPanel topPanel = new JPanel(new BorderLayout(10, 0));
+        topPanel.add(m_checkButton, BorderLayout.WEST);
+        topPanel.add(new JLabel("Run test query with sample data (LIMIT 5)"), BorderLayout.CENTER);
+        panel.add(topPanel, BorderLayout.NORTH);
+
+        final JScrollPane validScroll = new JScrollPane(m_validationArea);
+        validScroll.setPreferredSize(new Dimension(400, 200));
+        panel.add(validScroll, BorderLayout.CENTER);
 
         return panel;
     }

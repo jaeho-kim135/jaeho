@@ -37,11 +37,18 @@ final class SparkExpressionWebNodeDialog implements NodeDialog {
     @Override
     public Page getPage() {
         return Page.create()
-            .fromFile()
-            .bundleClass(SparkExpressionWebNodeDialog.class)
-            .basePath("js-src/dist")
-            .relativeFilePath("spark-expression.html")
-            .addResourceDirectory("assets");
+            .fromString(() -> SparkExpressionWebNodeDialog.class
+                .getResourceAsStream("/js-src/dist/spark-expression.html"))
+            .relativePath("spark-expression.html")
+            .addResource(() -> SparkExpressionWebNodeDialog.class
+                .getResourceAsStream("/js-src/dist/assets/spark-expression.js"),
+                "assets/spark-expression.js")
+            .addResource(() -> SparkExpressionWebNodeDialog.class
+                .getResourceAsStream("/js-src/dist/assets/spark-expression.css"),
+                "assets/spark-expression.css")
+            .addResource(() -> SparkExpressionWebNodeDialog.class
+                .getResourceAsStream("/js-src/dist/assets/index.js"),
+                "assets/index.js");
     }
 
     @Override
@@ -132,7 +139,7 @@ final class SparkExpressionWebNodeDialog implements NodeDialog {
     }
 
     /**
-     * Returns the available flow variables (excluding global constants).
+     * Returns all available flow variables.
      * Each entry is a map with "name" and "type" keys.
      */
     @SuppressWarnings("deprecation")
@@ -146,9 +153,6 @@ final class SparkExpressionWebNodeDialog implements NodeDialog {
             final List<Map<String, String>> result = new ArrayList<>();
             for (final var entry : variables.entrySet()) {
                 final FlowVariable fv = entry.getValue();
-                if (fv.isGlobalConstant()) {
-                    continue;
-                }
                 final Map<String, String> varInfo = new LinkedHashMap<>();
                 varInfo.put("name", fv.getName());
                 varInfo.put("type", fv.getType().name());

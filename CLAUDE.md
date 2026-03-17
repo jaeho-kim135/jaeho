@@ -1,175 +1,3 @@
-# 포함된 노드 목록
-
-이 저장소에는 다음 커스텀 Spark 노드들이 포함되어 있습니다:
-
-| 노드 | 패키지 | 다이얼로그 방식 | 상태 |
-|------|--------|----------------|------|
-| Spark Unpivot (Hyim) | `preproc.unpivot` | Swing (DataAwareNodeDialogPane) | 테스트 완료 |
-| Spark Multi Query (Hyim) | `sql.multiquery` | WebUI (NodeParameters) | 테스트 완료 |
-| Spark Expression (Hyim) | `sql.expression` | WebUI (커스텀 Vue.js) | 테스트 완료 |
-| Spark StringToNumber (Hyim) | `preproc.stringtonumber` | WebUI (NodeParameters) | 테스트 완료 |
-| Spark NumberToString (Hyim) | `preproc.numbertostring` | WebUI (NodeParameters) | 테스트 완료 |
-| Spark String to Date&Time (Hyim) | `preproc.stringtodatetime` | WebUI (NodeParameters) | 테스트 완료 |
-
----
----
-
-# Spark Expression Node (신규 개발)
-
-## 개요
-
-여러 Spark SQL 표현식을 순차적으로 적용하여 컬럼을 추가/변환하는 노드.
-각 표현식마다 Expression, Output Mode (APPEND/REPLACE), Output Column Name을 설정할 수 있다.
-**커스텀 Vue.js WebUI 다이얼로그**를 사용하여 코드 에디터 + 실시간 미리보기를 제공한다.
-
-- **노드명**: Spark Expression (Hyim)
-- **최소 Spark 버전**: 3.4
-- **노드 타입**: Manipulator
-- **다이얼로그**: 커스텀 WebUI (`NodeDialog` 인터페이스 + Vue.js 프론트엔드)
-
----
-
-## 플러그인 구조
-
-| 플러그인 | 역할 |
-|----------|------|
-| `org.knime.bigdata.spark_dx.node` | 노드 UI (Factory, Model, Settings, WebDialog, RPC Service, JobInput/Output) + Vue.js 프론트엔드 (`js-src/`) |
-| `org.knime.bigdata_spark3_4_dx` | Spark 3.4용 ExpressionJob 구현 |
-| `org.knime.bigdata_spark3_5_dx` | Spark 3.5용 ExpressionJob 구현 |
-
----
-
-## 클래스 구조
-
-### Node 레이어 (`org.knime.bigdata.spark.dx.node.sql.expression`)
-
-| 파일 | 역할 |
-|------|------|
-| `SparkExpressionNodeFactory.java` | `DefaultSparkNodeFactory` + `NodeDialogFactory` 구현. 카테고리: "sql" |
-| `SparkExpressionNodeFactory.xml` | 노드 설명 문서 |
-| `SparkExpressionNodeModel.java` | 노드 모델. `isNodeConfigured()` 체크, flow variable 치환, 순차적 `withColumn()` + `expr()` 실행 |
-| `SparkExpressionSettings.java` | 핵심 설정 (expressions[], outputModes[], columnNames[], configured 플래그) |
-| `SparkExpressionWebNodeDialog.java` | `NodeDialog` 구현. `ScriptingNodeSettingsService` 기반, RPC 데이터 서비스 제공, 입력 컬럼/Flow Variable/Function Catalog 초기 데이터 전달 |
-| `SparkExpressionWebSettings.java` | `GenericSettingsIOManager` 구현. WebUI JSON ↔ NodeSettings 브릿지 |
-| `SparkExpressionRpcService.java` | JSON-RPC 서비스. Evaluate (미리보기) + Input Table 미리보기. `$${varName}` flow variable 치환 지원 |
-| `SparkExpressionJobInput.java` | Job 입력 VO |
-| `SparkExpressionJobOutput.java` | Job 출력 VO (previewData 포함) |
-| `icon.png` | 노드 아이콘 |
-
-### Vue.js 프론트엔드 (`js-src/`)
-
-| 파일/디렉토리 | 역할 |
-|--------------|------|
-| `src/App.vue` | 메인 앱. 3-panel (enlarged) / compact 레이아웃 |
-| `src/components/ExpressionEditors.vue` | 다중 표현식 에디터 (Add/Remove/Up/Down) + Output Mode + Column Name |
-| `src/components/InputColumns.vue` | 입력 컬럼 목록 (더블클릭으로 에디터에 삽입) |
-| `src/components/FlowVariables.vue` | Flow Variable 목록 (`$${varName}` 형태로 삽입) |
-| `src/components/FunctionCatalog.vue` | 함수 카탈로그 (카테고리별 함수 목록, 더블클릭 삽입) |
-| `src/components/OutputPreview.vue` | 출력 미리보기 (Output/Input 탭, Evaluate 버튼) |
-| `src/knimeService.js` | KNIME 통신 브릿지 (`@knime/ui-extension-service` 사용). DialogService dirty-state 추적 |
-| `dist/` | Vite 빌드 결과물 (KNIME에서 직접 사용) |
-
-### Spark Job 레이어 (spark3_4 / spark3_5 동일 구조)
-
-| 파일 | 역할 |
-|------|------|
-| `ExpressionJob.java` | `SparkJob` 구현. `validateOnly=true`: `showString(10, 40, false)` 미리보기 반환. `validateOnly=false`: 결과 DataFrame 저장 |
-| `ExpressionJobRunFactory.java` | Job 실행 팩토리 |
-| `ExpressionJobRunFactoryProvider.java` | SPI 프로바이더 |
-
----
-
-## 포트 구성
-
-| 포트 | 방향 | 타입 | 설명 |
-|------|------|------|------|
-| 0 | 입력 | `SparkDataPortObject` | 표현식 적용 대상 Spark DataFrame |
-| 0 | 출력 | `SparkDataPortObject` | 표현식 적용된 결과 DataFrame |
-
----
-
-## 설정 항목
-
-| Config Key | 타입 | 기본값 | 설명 |
-|------------|------|--------|------|
-| `expressions` | String[] | [""] | Spark SQL 표현식 목록 |
-| `outputModes` | String[] | ["APPEND"] | 각 표현식의 출력 모드 (APPEND: 새 컬럼 추가, REPLACE: 기존 컬럼 교체) |
-| `columnNames` | String[] | ["new_column"] | 각 표현식의 출력 컬럼명 |
-| `configured` | Boolean | false | OK 버튼 클릭 여부 (최초 사용 시 경고 표시용) |
-
----
-
-## 주요 기능
-
-### Evaluate First 10 Rows
-- 다이얼로그에서 "Evaluate" 버튼 클릭 시 실제 Spark 클러스터에서 표현식을 실행하고 결과 10행을 미리보기
-- `SparkExpressionRpcService.evaluateExpressions()` → Spark Job (`validateOnly=true`) → `showString(10, 40, false)` 반환
-- Flow variable `$${varName}` 플레이스홀더가 실제 값으로 치환됨
-
-### Apply / Apply & Execute 버튼
-- `DialogService.registerSettings("model")` → `SettingState.setValue()` 패턴으로 dirty-state 추적
-- 설정 변경 시 `markDirty()` 호출 → Apply 버튼 활성화
-
-### Flow Variable 치환
-- `$${varName}` 형식으로 표현식에 flow variable 삽입
-- STRING → `'value'` (SQL 쿼팅), INTEGER/DOUBLE → 숫자 리터럴
-
-### 유효성 검증
-- 빈 표현식 체크
-- 빈 컬럼명 체크
-- 중복 컬럼명 체크
-- REPLACE 모드 시 기존 컬럼 존재 여부 (NodeModel configure에서)
-- APPEND 모드 시 기존 컬럼명 충돌 (NodeModel configure에서)
-
----
-
-## 테스트 완료 항목
-
-- [x] 단일/다중 표현식 APPEND 모드 → 정상
-- [x] REPLACE 모드 → 기존 컬럼 교체 정상
-- [x] Evaluate First 10 Rows → Spark 클러스터에서 실행 후 미리보기 표시
-- [x] Apply / Apply & Execute 버튼 활성화 → 설정 변경 시 정상 활성화
-- [x] Flow Variable 치환 → `$${varName}` 정상 치환
-- [x] 빈 표현식/컬럼명 → 프론트엔드 검증 에러
-- [x] 중복 컬럼명 → 프론트엔드 검증 에러
-- [x] Input Table 미리보기 → 정상
-- [x] 설정 저장/재로드 → 설정값 유지
-- [x] 다이얼로그 OK 클릭 → 노드 설정 완료, 실행 정상
-
----
-
-## Pull 받아서 사용하기
-
-이 저장소를 pull 받으면 Spark Expression 노드를 포함한 모든 노드가 바로 사용 가능합니다.
-
-### 필요한 파일 (Expression 노드 관련)
-
-**dx.node 플러그인:**
-- `org.knime.bigdata.spark_dx.node/src/.../sql/expression/` — Java 소스 전체 (10개 파일)
-- `org.knime.bigdata.spark_dx.node/js-src/` — Vue.js 프론트엔드 (src + dist)
-- `org.knime.bigdata.spark_dx.node/META-INF/MANIFEST.MF` — `org.knime.scripting.editor` 의존성 포함
-- `org.knime.bigdata.spark_dx.node/build.properties` — `js-src/dist/` 포함
-- `org.knime.bigdata.spark_dx.node/src/.../DxSparkNodeFactoryProvider.java` — `SparkExpressionNodeFactory` 등록
-
-**spark3_4 플러그인:**
-- `org.knime.bigdata_spark3_4_dx/src/.../sql/expression/` — ExpressionJob + Factory + Provider (3개 파일)
-- `org.knime.bigdata_spark3_4_dx/META-INF/MANIFEST.MF` — expression 패키지 export
-- `org.knime.bigdata_spark3_4_dx/plugin.xml` — ExpressionJobRunFactoryProvider 등록
-
-**spark3_5 플러그인:**
-- `org.knime.bigdata_spark3_5_dx/src/.../sql/expression/` — ExpressionJob + Factory + Provider (3개 파일)
-- `org.knime.bigdata_spark3_5_dx/META-INF/MANIFEST.MF` — expression 패키지 export
-- `org.knime.bigdata_spark3_5_dx/plugin.xml` — ExpressionJobRunFactoryProvider 등록
-
-### Eclipse에서 사용하기
-1. `git pull` 으로 최신 소스 받기
-2. Eclipse에서 3개 플러그인 프로젝트 Import (이미 import 되어있으면 Refresh)
-3. `js-src/dist/`가 이미 빌드되어 있으므로 npm 설치 불필요
-4. Run As > Eclipse Application → KNIME AP 실행 → Spark 카테고리에서 "Spark Expression (Hyim)" 노드 사용
-
----
----
-
 # Spark Pivot Node 구조 분석
 
 ## 개요
@@ -668,417 +496,6 @@ MultiQueryJob.runJob() (Spark 측)
 - [x] 선택 컬럼 요약 표시 → 정상
 
 ---
----
-
-# Spark String to Number Node (신규 개발)
-
-## 개요
-
-String 컬럼을 숫자 타입(Integer, Double, Long)으로 변환하는 노드.
-소수점 구분자, 천 단위 구분자, d/D/f/F 접미사 처리 등을 지원한다.
-
-- **노드명**: Spark String to Number(Hyim)
-- **최소 Spark 버전**: 3.4
-- **노드 타입**: Manipulator
-- **다이얼로그**: WebUI (`WebUINodeFactory` + `NodeParameters`)
-
----
-
-## 플러그인 구조
-
-| 플러그인 | 역할 |
-|----------|------|
-| `org.knime.bigdata.spark_dx.node` | 노드 UI (Factory, Model, Settings, Parameters, JobInput) |
-| `org.knime.bigdata_spark3_4_dx` | Spark 3.4용 StringToNumberJob 구현 |
-| `org.knime.bigdata_spark3_5_dx` | Spark 3.5용 StringToNumberJob 구현 |
-
----
-
-## 클래스 구조
-
-### Node 레이어 (`org.knime.bigdata.spark.dx.node.preproc.stringtonumber`)
-
-| 파일 | 역할 |
-|------|------|
-| `SparkStringToNumberNodeFactory.java` | `WebUINodeFactory` + `SparkNodeFactory`. 카테고리: "row" |
-| `SparkStringToNumberNodeModel.java` | 노드 모델. configure에서 컬럼/구분자 유효성 검증, execute에서 Spark Job 실행 |
-| `SparkStringToNumberSettings.java` | 설정 (include, parse_type, decimal_separator, thousands_separator, generic_parse, fail_on_error) |
-| `SparkStringToNumberNodeParameters.java` | WebUI 다이얼로그 (2섹션: Column Selection, Parsing Options) |
-| `SparkStringToNumberJobInput.java` | Job 입력 VO. `@SparkClass` |
-
-### Spark Job 레이어 (spark3_4 / spark3_5 동일 구조)
-
-| 파일 | 역할 |
-|------|------|
-| `StringToNumberJob.java` | `SparkJob` 구현. 단일 `select()`로 모든 컬럼 변환. failOnError 시 검증 패스 포함 |
-| `StringToNumberJobRunFactory.java` | Job 실행 팩토리 |
-| `StringToNumberJobRunFactoryProvider.java` | SPI 프로바이더 |
-
----
-
-## 포트 구성
-
-| 포트 | 방향 | 타입 | 설명 |
-|------|------|------|------|
-| 0 | 입력 | `SparkDataPortObject` | 변환 대상 Spark DataFrame |
-| 0 | 출력 | `SparkDataPortObject` | 숫자 타입으로 변환된 결과 DataFrame |
-
----
-
-## 설정 항목
-
-| Config Key | 타입 | 기본값 | 설명 |
-|------------|------|--------|------|
-| `include` | ColumnFilter | [] | 변환 대상 String 컬럼 |
-| `parse_type` | String | "DOUBLE" | 대상 숫자 타입 (INTEGER / DOUBLE / LONG) |
-| `decimal_separator` | String | "." | 소수점 구분자 (빈값 = 기본 ".") |
-| `thousands_separator` | String | "" | 천 단위 구분자 (빈값 = 비활성) |
-| `generic_parse` | Boolean | false | d/D/f/F 접미사 허용 여부 |
-| `fail_on_error` | Boolean | false | 변환 실패 시 노드 에러 |
-
----
-
-## WebUI NodeParameters 구조
-
-### 섹션 레이아웃
-
-```
-Section 1: Column Selection
-  m_inclCols: ColumnFilterWidget (String 타입 컬럼만 표시)
-
-Section 2: Parsing Options
-  m_parseType: ValueSwitchWidget (INTEGER / DOUBLE / LONG)
-  m_decimalSep: String 필드 (기본 ".")
-  m_thousandsSep: String 필드 (기본 "")
-  m_genericParse: Boolean 체크박스
-  m_failOnError: Boolean 체크박스
-```
-
-### Persistors
-- `IncludedColumnsPersistor extends LegacyColumnFilterPersistor` — 구 InclList 포맷 하위 호환
-- `ParseTypePersistor` — ParseTypeOption enum <-> String 매핑
-
-### ColumnChoicesProvider
-- `SparkStringColumnChoicesProvider` — `StringValue.class` 호환 컬럼만 필터
-
----
-
-## Spark Job 변환 파이프라인 (buildConversionExpr)
-
-단일 `select()` 호출로 모든 컬럼을 한 번에 변환 (반복 `withColumn()` 대신):
-
-```
-1. Blank Handling: 빈 문자열/공백 -> null
-2. Thousands Separator: 구분자 문자 제거 (regexp_replace)
-3. Decimal Separator: 커스텀 구분자 -> "." 변환 (DOUBLE 타입일 때)
-   - "."이 이미 포함된 값 + 커스텀 구분자 -> null (모호한 값)
-4. Suffix Check: genericParse=false면 d/D/f/F 접미사 -> null
-5. Trim: 앞뒤 공백 제거
-6. Cast: 대상 Spark 타입으로 캐스팅 (무효값 -> null)
-```
-
-### failOnError=true 모드
-
-3단계 검증:
-1. 검증 DataFrame 생성: 원본 + 변환값(`_stn_conv_`) + 유효성 플래그(`_stn_valid_`)
-2. 각 대상 컬럼별로 실패 행 수 카운트 (non-empty -> null 변환 = 실패)
-3. 실패 시 샘플 값 3개 수집 -> `KNIMESparkException` throw
-
-### failOnError=false 모드 (기본)
-
-단순 단일 패스: `select()`로 모든 변환 적용, 무효값은 null
-
----
-
-## 유효성 검증
-
-| 검증 | 에러 메시지 |
-|------|------------|
-| 컬럼 미선택 | "No columns selected." |
-| 컬럼 미존재 | "Column 'X' not found in input table." |
-| 소수점 구분자 길이 | "Decimal separator must be at most one character." |
-| 천 단위 구분자 길이 | "Thousands separator must be at most one character." |
-| 구분자 동일 | "Decimal separator and thousands separator must be different." |
-
----
-
-## 테스트 완료 항목
-
-- [x] INTEGER / DOUBLE / LONG 변환 -> 정상
-- [x] 소수점 구분자 변경 (쉼표 등) -> 정상
-- [x] 천 단위 구분자 제거 -> 정상
-- [x] d/D/f/F 접미사 허용/거부 -> 정상
-- [x] failOnError ON: 실패 시 샘플 값 포함 에러 -> 정상
-- [x] failOnError OFF: 무효값 null 처리 -> 정상
-- [x] 빈 문자열/공백 -> null 처리 -> 정상
-- [x] 설정 저장/재로드 -> 설정값 유지
-- [x] batch select() 방식으로 컬럼 해상도 문제 해결 -> 정상
-
----
----
-
-# Spark Number to String Node (신규 개발)
-
-## 개요
-
-숫자 컬럼(Integer, Long, Double)을 String 타입으로 변환하는 노드.
-가장 간단한 구조의 변환 노드.
-
-- **노드명**: Spark Number to String(Hyim)
-- **최소 Spark 버전**: 3.4
-- **노드 타입**: Manipulator
-- **다이얼로그**: WebUI (`WebUINodeFactory` + `NodeParameters`)
-
----
-
-## 플러그인 구조
-
-| 플러그인 | 역할 |
-|----------|------|
-| `org.knime.bigdata.spark_dx.node` | 노드 UI (Factory, Model, Settings, Parameters, JobInput) |
-| `org.knime.bigdata_spark3_4_dx` | Spark 3.4용 NumberToStringJob 구현 |
-| `org.knime.bigdata_spark3_5_dx` | Spark 3.5용 NumberToStringJob 구현 |
-
----
-
-## 클래스 구조
-
-### Node 레이어 (`org.knime.bigdata.spark.dx.node.preproc.numbertostring`)
-
-| 파일 | 역할 |
-|------|------|
-| `SparkNumberToStringNodeFactory.java` | `WebUINodeFactory` + `SparkNodeFactory`. 카테고리: "row" |
-| `SparkNumberToStringNodeModel.java` | 노드 모델. configure에서 컬럼 존재 검증, execute에서 Spark Job 실행 |
-| `SparkNumberToStringSettings.java` | 설정 (include만) |
-| `SparkNumberToStringNodeParameters.java` | WebUI 다이얼로그 (1섹션: Column Selection) |
-| `SparkNumberToStringJobInput.java` | Job 입력 VO. `@SparkClass` |
-
-### Spark Job 레이어 (spark3_4 / spark3_5 동일 구조)
-
-| 파일 | 역할 |
-|------|------|
-| `NumberToStringJob.java` | `SparkJob` 구현. `withColumn(col.cast(StringType))` 반복 |
-| `NumberToStringJobRunFactory.java` | Job 실행 팩토리 |
-| `NumberToStringJobRunFactoryProvider.java` | SPI 프로바이더 |
-
----
-
-## 포트 구성
-
-| 포트 | 방향 | 타입 | 설명 |
-|------|------|------|------|
-| 0 | 입력 | `SparkDataPortObject` | 변환 대상 Spark DataFrame |
-| 0 | 출력 | `SparkDataPortObject` | String으로 변환된 결과 DataFrame |
-
----
-
-## 설정 항목
-
-| Config Key | 타입 | 기본값 | 설명 |
-|------------|------|--------|------|
-| `include` | ColumnFilter | [] | 변환 대상 숫자 컬럼 |
-
----
-
-## WebUI NodeParameters 구조
-
-```
-Section 1: Column Selection
-  m_inclCols: ColumnFilterWidget (DoubleValue 호환 컬럼만 표시)
-```
-
-### Persistors
-- `IncludedColumnsPersistor extends LegacyColumnFilterPersistor` — 구 InclList 포맷 하위 호환
-
-### ColumnChoicesProvider
-- `SparkNumericColumnChoicesProvider` — `DoubleValue.class` 호환 컬럼만 필터
-
----
-
-## Spark Job 로직
-
-```java
-for (colName : columns) {
-    result = result.withColumn(colName, col(colName).cast(DataTypes.StringType));
-}
-```
-
-- 단순 `cast(StringType)` 반복
-- null 값은 null 유지
-- 별도 에러 처리 없음
-
----
-
-## 유효성 검증
-
-| 검증 | 에러 메시지 |
-|------|------------|
-| 컬럼 미선택 | "No columns selected." |
-| 컬럼 미존재 | "Column 'X' not found in input table." |
-
----
-
-## 테스트 완료 항목
-
-- [x] Integer / Double / Long -> String 변환 -> 정상
-- [x] null 값 유지 -> 정상
-- [x] 컬럼 미선택 -> 에러
-- [x] 설정 저장/재로드 -> 설정값 유지
-
----
----
-
-# Spark String to Date&Time Node (신규 개발)
-
-## 개요
-
-String 컬럼을 날짜/시간 타입(Date, Time, DateTime, Zoned DateTime)으로 변환하는 노드.
-Java DateTimeFormatter 패턴 문법을 사용하며, Locale 설정을 지원한다.
-
-- **노드명**: Spark String to Date&Time (Hyim)
-- **최소 Spark 버전**: 3.4
-- **노드 타입**: Manipulator
-- **다이얼로그**: WebUI (`WebUINodeFactory` + `NodeParameters`)
-
----
-
-## 플러그인 구조
-
-| 플러그인 | 역할 |
-|----------|------|
-| `org.knime.bigdata.spark_dx.node` | 노드 UI (Factory, Model, Settings, Parameters, JobInput) |
-| `org.knime.bigdata_spark3_4_dx` | Spark 3.4용 StringToDateTimeJob 구현 |
-| `org.knime.bigdata_spark3_5_dx` | Spark 3.5용 StringToDateTimeJob 구현 |
-
----
-
-## 클래스 구조
-
-### Node 레이어 (`org.knime.bigdata.spark.dx.node.preproc.stringtodatetime`)
-
-| 파일 | 역할 |
-|------|------|
-| `SparkStringToDateTimeNodeFactory.java` | `WebUINodeFactory` + `SparkNodeFactory`. 카테고리: "row" |
-| `SparkStringToDateTimeNodeModel.java` | 노드 모델. configure에서 컬럼/포맷 유효성 검증, execute에서 Spark Job 실행 |
-| `SparkStringToDateTimeSettings.java` | 설정 (include, format, output_type, locale, fail_on_error) |
-| `SparkStringToDateTimeNodeParameters.java` | WebUI 다이얼로그 (2섹션: Column Selection, Type and Format) |
-| `SparkStringToDateTimeJobInput.java` | Job 입력 VO. `@SparkClass` |
-
-### Spark Job 레이어 (spark3_4 / spark3_5 동일 구조)
-
-| 파일 | 역할 |
-|------|------|
-| `StringToDateTimeJob.java` | `SparkJob` 구현. 타입별 `to_date()` / `to_timestamp()` 적용 |
-| `StringToDateTimeJobRunFactory.java` | Job 실행 팩토리 |
-| `StringToDateTimeJobRunFactoryProvider.java` | SPI 프로바이더 |
-
----
-
-## 포트 구성
-
-| 포트 | 방향 | 타입 | 설명 |
-|------|------|------|------|
-| 0 | 입력 | `SparkDataPortObject` | 변환 대상 Spark DataFrame |
-| 0 | 출력 | `SparkDataPortObject` | 날짜/시간 타입으로 변환된 결과 DataFrame |
-
----
-
-## 설정 항목
-
-| Config Key | 타입 | 기본값 | 설명 |
-|------------|------|--------|------|
-| `include` | ColumnFilter | [] | 변환 대상 String 컬럼 |
-| `format` | String | "yyyy-MM-dd" | DateTimeFormatter 패턴 |
-| `output_type` | String | "DATE" | 출력 타입 (DATE / TIME / DATE_TIME / ZONED_DATE_TIME) |
-| `locale` | String | 시스템 기본 | Locale language tag (예: "en-US", "ko-KR") |
-| `fail_on_error` | Boolean | false | 변환 실패 시 노드 에러 |
-
----
-
-## WebUI NodeParameters 구조
-
-### 섹션 레이아웃
-
-```
-Section 1: Column Selection
-  m_inclCols: ColumnFilterWidget (String 타입 컬럼만 표시)
-
-Section 2: Type and Format
-  m_outputType: ValueSwitchWidget (Date / Time / Date&Time / Zoned Date&Time)
-  m_format: String 필드 (DateTimeFormatter 패턴)
-  m_locale: String 필드 (언어 태그)
-  m_failOnError: Boolean 체크박스
-```
-
-### OutputTypeOption enum
-
-```java
-enum OutputTypeOption {
-    DATE("Date"),
-    TIME("Time"),
-    DATE_TIME("Date&Time"),
-    ZONED_DATE_TIME("Zoned Date&Time")
-}
-```
-
-### Persistors
-- `IncludedColumnsPersistor extends LegacyColumnFilterPersistor` — 구 InclList 포맷 하위 호환
-- `OutputTypePersistor` — OutputTypeOption enum <-> String 매핑
-- `FormatPersistor` — 포맷 문자열 저장/로드
-- `LocalePersistor` — locale language tag 저장/로드
-- `FailOnErrorPersistor` — boolean 저장/로드
-
-### ColumnChoicesProvider
-- `SparkStringColumnChoicesProvider` — `StringValue.class` 호환 컬럼만 필터
-
----
-
-## Spark Job 변환 로직
-
-### 타입별 Spark SQL 함수
-
-| Output Type | Spark 함수 | 비고 |
-|-------------|-----------|------|
-| DATE | `to_date(col, format)` | DateType으로 변환 |
-| TIME | `to_timestamp(col, format)` | Spark에 Time 전용 타입 없음. epoch date(1970-01-01) 사용 |
-| DATE_TIME | `to_timestamp(col, format)` | TimestampType으로 변환 |
-| ZONED_DATE_TIME | `to_timestamp(col, format)` | Spark 내부적으로 timezone 미지원 |
-
-### failOnError=true 모드
-
-1. 원본 값을 임시 컬럼(`_stdt_orig_`)에 저장
-2. 변환 적용
-3. non-null/non-blank 원본인데 변환 결과가 null인 행 카운트
-4. 실패 시 샘플 값 3개 수집 -> `KNIMESparkException` throw
-5. 임시 컬럼 제거
-
-### failOnError=false 모드 (기본)
-
-직접 `withColumn()`으로 변환 적용, 파싱 실패 시 null
-
----
-
-## 유효성 검증
-
-| 검증 | 에러 메시지 |
-|------|------------|
-| 컬럼 미선택 | "No columns selected." |
-| 컬럼 미존재 | "Column 'X' not found in input table." |
-| 포맷 비어있음 | "Format string must not be empty." |
-
----
-
-## 테스트 완료 항목
-
-- [x] Date 변환 (yyyy-MM-dd) -> 정상
-- [x] Time 변환 (HH:mm:ss) -> 정상
-- [x] DateTime 변환 (yyyy-MM-dd HH:mm:ss) -> 정상
-- [x] Locale 변경 -> 정상
-- [x] failOnError ON: 실패 시 에러 -> 정상
-- [x] failOnError OFF: 파싱 실패 -> null -> 정상
-- [x] 설정 저장/재로드 -> 설정값 유지
-
----
 
 ## 공통 기술 패턴
 
@@ -1119,112 +536,278 @@ enum OutputTypeOption {
 ---
 ---
 
-# Spark Multi Query Node — WebUI 전환 (진행 중)
+# Spark Expression Node (신규 개발)
 
 ## 개요
 
-`SparkMultiQueryNodeDialog.java` (Swing) → `SparkMultiQueryNodeParameters.java` (WebUI `@NodeParameters`) 로 변환 완료.
-`SparkMultiQueryNodeFactory.java`도 `WebUINodeFactory` 로 변경.
+여러 Spark SQL 표현식을 적용하여 컬럼을 변환하거나 추가하는 Expression 노드.
+KNIME의 Expression 노드를 Spark 환경에서 동작하도록 구현한 버전.
+각 표현식 행은 SQL 표현식, 출력 모드(APPEND/REPLACE), 출력 컬럼명으로 구성.
+
+- **노드명**: Spark Expression (Hyim)
+- **최소 Spark 버전**: 3.4
+- **노드 타입**: Manipulator
 
 ---
 
-## 변경된 파일 목록
+## 플러그인 구조
 
-| 파일 | 변경 내용 |
-|------|-----------|
-| `SparkMultiQueryNodeFactory.java` | `DefaultSparkNodeFactory` → `WebUINodeFactory<SparkMultiQueryNodeModel>`, `modelSettingsClass(SparkMultiQueryNodeParameters.class)` |
-| `SparkMultiQuerySettings.java` | NameFilterConfiguration 포맷 지원 추가 (`writeColumnFilter`, `loadColumnFilter`, `validateColumnFilter` 헬퍼). 구 포맷(InclList) 하위 호환 유지 |
-| `SparkMultiQueryNodeParameters.java` | 신규 WebUI 다이얼로그 클래스 (아래 상세) |
-| `SparkMultiQueryNodeModel.java` | `$$varName` flow variable 치환 로직 추가 (`resolveFlowVariables()` 메서드) |
+| 플러그인 | 역할 |
+|----------|------|
+| `org.knime.bigdata.spark.dx.node` | 노드 UI (Factory, Model, Dialog, Settings, JobInput/Output) |
+| `org.knime.bigdata.spark3_4.dx` | Spark 3.4용 Job 구현 |
+| `org.knime.bigdata.spark3_5.dx` | Spark 3.5용 Job 구현 |
 
 ---
 
-## SparkMultiQueryNodeParameters.java 구조
+## 클래스 구조
 
-### 섹션 레이아웃
-1. **Column Selection** — `@ColumnFilterWidget` (TargetColumnsPersistor로 구 포맷 하위 호환)
-2. **SQL Expression** — 템플릿 드롭다운 + SQL 필드 + Flow Variable 드롭다운 + Insert 버튼
-3. **Output Options** — keepOriginal, outputColumnPattern
-4. **SQL Preview** — 실시간 SELECT 미리보기 (TextMessage)
-5. **Validation** — Run Validation 버튼 + 결과 표시 (TextMessage)
+### Node 레이어 (`org.knime.bigdata.spark.dx.node.sql.expression`)
 
-### 주요 클래스
-- `ExpressionTemplate` enum — CUSTOM + 11개 프리셋, `getSql()` 메서드
-- `EphemeralTemplatePersistor` — 템플릿 저장 안 함, 항상 CUSTOM으로 초기화
-- `EphemeralStringPersistor` — Flow Variable 선택 저장 안 함, 항상 "" 초기화
-- `TargetColumnsPersistor extends LegacyColumnFilterPersistor` — 구 InclList 포맷 하위 호환
-- `AllFlowVarsProvider implements FlowVariableChoicesProvider` — `NodeParametersInputImpl` 캐스트하여 사용 가능한 flow variable 목록 제공. `VariableTypeRegistry.getInstance().getAllTypes()` 사용
-- `SqlExpressionValueProvider implements StateProvider<String>` — **`@ValueProvider`** 사용:
-  - 템플릿 변경 시(`computeFromValueSupplier(TemplateRef)`) → 해당 template SQL로 교체
-  - Insert 버튼 클릭 시(`computeOnButtonClick(InsertFlowVarButtonRef)`) → 현재 SQL + `$$varName` 추가
-  - 템플릿 non-CUSTOM이면 항상 템플릿 우선 (Insert보다 높은 우선순위)
-- `SqlPreviewProvider` — 4개 필드 변경 시 실시간 SELECT 미리보기
-- `ValidationProvider` — 버튼 클릭 시 Spark Job 실행, 실패 시 컬럼별 개별 테스트. **샘플 데이터 미표시** (Unpivot과 동일)
+| 파일 | 역할 |
+|------|------|
+| `SparkExpressionNodeFactory.java` | 노드 팩토리. `DefaultSparkNodeFactory` 상속. 카테고리: "sql" |
+| `SparkExpressionNodeFactory.xml` | 노드 설명 (1탭: Expression - split-pane 레이아웃) |
+| `SparkExpressionNodeModel.java` | 노드 모델. configure에서 유효성 검증, execute에서 Job 실행 |
+| `SparkExpressionNodeDialog.java` | `DataAwareNodeDialogPane` 상속. KNIME Expression 노드 스타일 split-pane 레이아웃, Evaluate 버튼 |
+| `SparkExpressionSettings.java` | 설정 모델 (expressions[], outputModes[], columnNames[]) |
+| `SparkExpressionJobInput.java` | Job 입력 VO. validateOnly 지원 |
+| `SparkExpressionJobOutput.java` | Job 출력 VO. previewData 포함 |
 
-### 필드
-```java
-ColumnFilter       m_targetColumns         // @ColumnFilterWidget + @Persistor(TargetColumnsPersistor)
-ExpressionTemplate m_expressionTemplate    // @Persistor(EphemeralTemplatePersistor), @ValueReference(TemplateRef)
-String             m_sqlExpression         // @Persist + @ValueReference + @ValueProvider(SqlExpressionValueProvider)
-String             m_flowVarToInsert       // @ChoicesProvider(AllFlowVarsProvider) + @Persistor(EphemeralStringPersistor) + @ValueReference(FlowVarSelectorRef) — 드롭다운
-Void               m_insertFlowVarButton   // @SimpleButtonWidget(ref=InsertFlowVarButtonRef, icon=Icon.RELOAD)
-boolean            m_keepOriginalColumns
-String             m_outputColumnPattern
-Void               m_sqlPreview            // @TextMessage(SqlPreviewProvider)
-Void               m_checkButton           // @SimpleButtonWidget(ref=CheckButtonRef, icon=Icon.RELOAD)
-Void               m_validationDisplay     // @TextMessage(ValidationProvider)
+### Spark Job 레이어 (spark3_4 / spark3_5 동일 구조)
+
+| 파일 | 역할 |
+|------|------|
+| `ExpressionJob.java` | SparkJob 구현. `withColumn(name, expr(sql))` 순차 적용. validateOnly시 LIMIT 5 + showString |
+| `ExpressionJobRunFactory.java` | Job 실행 팩토리 |
+| `ExpressionJobRunFactoryProvider.java` | SPI 프로바이더 |
+
+---
+
+## 포트 구성
+
+| 포트 | 방향 | 타입 | 설명 |
+|------|------|------|------|
+| 0 | 입력 | `SparkDataPortObject` | 변환 대상 Spark DataFrame |
+| 0 | 출력 | `SparkDataPortObject` | 표현식 적용된 결과 DataFrame |
+
+---
+
+## 설정 항목
+
+| Config Key | 타입 | 기본값 | 설명 |
+|------------|------|--------|------|
+| `expressions` | String[] | [""] | Spark SQL 표현식 목록 |
+| `outputModes` | String[] | ["APPEND"] | 출력 모드 목록 (APPEND / REPLACE) |
+| `columnNames` | String[] | ["new_column"] | 출력 컬럼명 목록 |
+| `nodeConfigured` | Boolean | false | OK 클릭 여부 |
+
+---
+
+## 유효성 검증 (Dialog OK + NodeModel configure 양쪽)
+
+| 검증 | 에러 메시지 |
+|------|------------|
+| 표현식 비어있음 | "Expression N is empty. Enter a Spark SQL expression." |
+| 컬럼명 비어있음 | "Output column name for Expression N is empty." |
+| 중복 출력 컬럼명 | "Duplicate output column name 'X' in Expression N." |
+| REPLACE: 컬럼 미존재 | "Expression N: cannot replace column 'X' because it does not exist." |
+| APPEND: 컬럼 이미 존재 | "Expression N: output column 'X' already exists in the input table." |
+| 노드 미설정 | "Node has not been configured." |
+
+---
+
+## 실행 흐름
+
+```
+SparkExpressionNodeFactory
+  └─ creates SparkExpressionNodeModel
+
+configureInternal()
+  ├─ 노드 설정 여부 확인 (CFG_CONFIGURED)
+  ├─ 표현식 비어있음/컬럼명 비어있음 검증
+  ├─ 중복 출력 컬럼명 검증 (APPEND + REPLACE 모두)
+  ├─ REPLACE: 대상 컬럼 존재 여부 검증 (체인 추적)
+  ├─ APPEND: 기존 컬럼명 충돌 검증
+  └─ 출력 스펙 null (SQL 결과 타입은 실행 시 결정)
+
+executeInternal()
+  ├─ SparkExpressionJobInput 구성 (expressions, modes, names)
+  ├─ SparkContextUtil.getJobRunFactory() 로 Job 실행
+  └─ Spark Job 결과 스펙으로 SparkDataPortObject 반환
+
+ExpressionJob.runJob() (Spark 측)
+  ├─ validateOnly=true:
+  │   ├─ 표현식 순차 적용 withColumn(name, expr(sql))
+  │   ├─ 실패 시 "Expression N error: ..." 반환
+  │   └─ 성공 시 showString(5) 프리뷰 반환
+  ├─ 정상 실행:
+  │   ├─ 표현식 순차 적용 withColumn(name, expr(sql))
+  │   ├─ APPEND: 새 컬럼 추가 / REPLACE: 기존 컬럼 덮어쓰기
+  │   └─ 결과 DataFrame + IntermediateSpec 반환
+  └─ 표현식 체인: 이전 표현식 결과를 다음 표현식에서 참조 가능
 ```
 
 ---
 
-## SparkMultiQueryNodeModel.java — Flow Variable 치환
+## 다이얼로그 기능
 
-```java
-private static final Pattern FLOW_VAR_PATTERN =
-    Pattern.compile("\\$\\$([A-Za-z_][A-Za-z0-9_.\\-]*)");
+### 탭 구성 (KNIME Expression 노드 스타일 split-pane)
+- **단일 탭 - Expression**: 좌측(Input Columns + Function Catalog) | 중앙(Expression 탭) | 하단(Output Preview)
 
-@SuppressWarnings("deprecation")
-private String resolveFlowVariables(final String sql) throws InvalidSettingsException {
-    if (!sql.contains("$$")) return sql;
-    Map<String, FlowVariable> flowVars = getAvailableFlowVariables();
-    // INTEGER → 숫자 그대로, DOUBLE → 숫자 그대로, 기타(STRING) → 'value' (싱글쿼트, '' 이스케이프)
-}
+### 레이아웃
 ```
-- `executeInternal()`에서 `m_settings.getSqlExpression()` → `resolveFlowVariables()` 거쳐 jobInput에 전달
+┌────────────┬──────────────────────────────────────────┐
+│            │  [Expr 1] [Expr 2] [+] [-]   (tabs)     │
+│  Input     │  ┌──────────────────────────────────────┐ │
+│  Columns   │  │   Expression Editor (large area)      │ │
+│            │  │   (monospace font)                    │ │
+│  ────────  │  ├──────────────────────────────────────┤ │
+│            │  │ Output: [APPEND ▼]  Column: [____]  │ │
+│  Function  │  └──────────────────────────────────────┘ │
+│  Catalog   │  ─── Output Preview ─────────────────── │
+│            │  [Evaluate] Preview first 5 rows         │
+│            │  ┌──────────────────────────────────────┐ │
+│            │  │ preview output                        │ │
+│            │  └──────────────────────────────────────┘ │
+└────────────┴──────────────────────────────────────────┘
+```
+
+### 좌측 패널
+- **Input Columns** (상단): 입력 테이블 컬럼 목록 (이름 + 타입). 더블클릭으로 에디터에 삽입
+- **Function Catalog** (하단): Spark SQL 함수 카탈로그 (String, Math, Date/Time, Null, Type Cast, Conditional). 더블클릭으로 템플릿 삽입
+- 컬럼명에 공백/특수문자 포함 시 자동 백틱 래핑
+
+### 중앙 패널 (Expression Tabs)
+- JTabbedPane: 각 탭이 하나의 표현식
+- `+` 버튼: 새 표현식 탭 추가 / `-` 버튼: 현재 탭 삭제 (최소 1개 유지)
+- 각 탭: 큰 JTextArea 에디터 (모노스페이스) + Output Mode 콤보 (APPEND/REPLACE) + Column Name 필드
+- 표현식 순차 적용: 이전 표현식 결과를 다음 표현식에서 참조 가능
+
+### Evaluate (Output Preview)
+- Evaluate 버튼 → SwingWorker로 validate-only Spark Job 실행
+- 성공 시 초록색 + 샘플 데이터 5행 표시
+- 실패 시 빨간색 + 어떤 표현식이 실패했는지 표시 ("Expression N error: ...")
+- upstream 노드 미실행 시 안내 메시지
+- 유효성 검증 실패 시 해당 탭으로 자동 전환
+
+### 표현식 예시
+- `UPPER(name)` — 대문자 변환
+- `col1 + col2` — 산술 연산
+- `CAST(age AS STRING)` — 타입 캐스팅
+- `COALESCE(col1, 'default')` — null 처리
+- `REGEXP_REPLACE(text, 'pattern', 'replacement')` — 정규식
+- `CONCAT(first, ' ', last)` — 문자열 결합
+- `CASE WHEN age > 18 THEN 'adult' ELSE 'minor' END` — 조건식
+- `TO_DATE(date_str, 'yyyy-MM-dd')` — 날짜 파싱
 
 ---
 
-## 확인된 WebUI API (node.parameters 패키지)
+## WebUI 다이얼로그 (Vue.js) — 구현 완료, 핵심 버그 미해결
 
-| 확인 여부 | 항목 |
-|-----------|------|
-| ✅ 확인 | `@ValueReference`, `@Persistor`, `@Persist`, `@ColumnFilterWidget`, `@TextMessage`, `@SimpleButtonWidget`, `@Widget`, `@Layout`, `@Section`, `@After` |
-| ✅ 확인 | `StateProviderInitializer.computeFromValueSupplier()`, `getValueSupplier()`, `computeOnButtonClick()` |
-| ✅ 확인 | `LegacyColumnFilterPersistor`, `ColumnChoicesProvider`, `ColumnFilter` |
-| ✅ 사용 중 | `@ValueProvider(ProviderClass.class)` — `org.knime.node.parameters.updates.ValueProvider` import |
-| ✅ 확인 | `@ChoicesProvider`, `FlowVariableChoicesProvider` — flow variable 드롭다운 지원 |
-| ✅ 확인 | `NodeParametersInputImpl.getAvailableInputFlowVariables(VariableType<?>...)` — flow variable 목록 접근 가능 (캐스트 필요, `@SuppressWarnings("restriction")`) |
-| ❌ 없음 | `Icon.ADD` — `Icon.RELOAD` 사용할 것 |
+### WebUI 아키텍처
+기존 Swing `DataAwareNodeDialogPane` 대신 Vue.js 3 기반 WebUI 다이얼로그를 추가 구현.
+`SparkExpressionWebNodeDialog.java` → KNIME `NodeDialog` (ModernUI) → Vue.js 프론트엔드.
+
+**파일 구조:**
+- `SparkExpressionWebNodeDialog.java` — Page, NodeSettingsService(ScriptingNodeSettingsService), RpcDataService 구성
+- `SparkExpressionWebSettings.java` — `ScriptingNodeSettings` 상속, `GenericSettingsIOManager` 구현. NodeSettings ↔ JSON 브릿지
+- `SparkExpressionRpcService.java` — Evaluate/Preview용 RPC 서비스 (NodeContext.pushContext 패턴)
+- `js-src/src/App.vue` — 메인 Vue 컴포넌트 (3패널 레이아웃: 좌측 컬럼/함수, 중앙 에디터, 하단 프리뷰)
+- `js-src/src/knimeService.js` — KNIME jsonDataService 통신 브릿지 (initKnimeService, callRpc, registerDataGetter)
+- `js-src/src/components/ExpressionEditors.vue` — 다중 표현식 탭 에디터 + Output Mode(APPEND/REPLACE) + Column Name
+- `js-src/src/components/OutputPreview.vue` — Input table / Output table 프리뷰 (Spark showString 파싱)
+- `js-src/src/components/FunctionCatalog.vue` — Spark SQL 함수 카탈로그 (카테고리별, 검색, 더블클릭 삽입)
+- `js-src/src/components/ColumnList.vue` — 입력 컬럼 목록 (타입 표시, 더블클릭 삽입)
+
+### 핵심 버그 (미해결, 2026-03-13 기준)
+
+**증상 1: "Node has not been configured" 에러**
+- KNIME AP에서 노드에 "Node has not been configured. Open the dialog and enter at least one expression." 문구 표시
+- 다이얼로그 OK 클릭 후에도 설정이 NodeModel로 전달되지 않음
+- `SparkExpressionWebSettings.writeMapToNodeSettings()`에서 설정 저장이 실패하는 것으로 추정
+
+**증상 2: Apply / Apply and Execute 버튼 비활성화**
+- 다이얼로그 열어도 Apply, Apply and Execute 버튼이 회색(greyed out)으로 활성화되지 않음
+- `jsonDataService.registerDataGetter()` 호출이 제대로 되지 않는 것으로 추정
+- `registerDataGetter`를 `initKnimeService()` 전에 호출하도록 변경했으나 효과 없음
+
+**증상 3: Evaluate first 10 rows 미작동**
+- Evaluate 버튼 클릭 시 표현식이 적용되지 않음
+- APPEND/REPLACE 모두 결과에 반영 안 됨
+- Add Expression 추가해도 결과 변화 없음
+- Vue reactive() Proxy 객체가 RPC 직렬화 시 문제일 수 있어 `[...settings.expressions]` 스프레드로 변경했으나 효과 없음
+
+### 시도한 수정 (모두 실패)
+
+1. **registerDataGetter 타이밍 변경**: `await initKnimeService()` 전에 호출 → 효과 없음
+2. **reactive Proxy 스프레드**: RPC 호출 시 `[...settings.expressions]` 등으로 plain array 전달 → 효과 없음
+3. **NodeSettingsCorrectionUtil 제거**: `writeMapToNodeSettings`에서 중간 NodeSettings 생성 대신 직접 `saveSettingsTo()` 호출 → 효과 없음
+4. **jsonDataService 재검출**: module load 시점 + registerDataGetter 내부에서 재검출 → 효과 없음
+
+### 근본 원인 가설
+
+**`ScriptingNodeSettingsService`가 커스텀 Vue 프론트엔드와 호환되지 않을 가능성이 높음.**
+
+- `ScriptingNodeSettingsService`는 KNIME의 `@knime/scripting-editor` 패키지와 함께 사용하도록 설계됨
+- 커스텀 Vue 프론트엔드에서 수동으로 `jsonDataService.registerDataGetter()`를 호출하는 방식이 `ScriptingNodeSettingsService`가 기대하는 프로토콜과 다를 수 있음
+- `jsonDataService.registerDataGetter` 메서드 자체가 KNIME 런타임에 존재하지 않을 수도 있음
+
+### 다음 단계 (해결 방향)
+
+1. **`NodeSettingsService` 직접 구현**: `ScriptingNodeSettingsService` 대신 `NodeSettingsService` 인터페이스를 직접 구현하여 커스텀 Vue 프론트엔드와의 데이터 교환을 제어
+2. **KNIME WebUI 데이터 교환 프로토콜 조사**: `jsonDataService`의 실제 API (initialData, data, registerDataGetter 등) 확인
+3. **기존 KNIME WebUI 노드 참조**: KNIME 오픈소스의 다른 WebUI 노드가 `NodeSettingsService`를 어떻게 구현하는지 분석
+4. **Swing 다이얼로그 폴백**: WebUI 해결 불가 시 기존 Swing `SparkExpressionNodeDialog` 사용
 
 ---
+---
 
-## Flow Variable UI — 현재 구현 상태
+# Spark 커스텀 노드 개발 로드맵
 
-### 구현 완료 (드롭다운 방식)
-- `AllFlowVarsProvider implements FlowVariableChoicesProvider` — 모든 타입의 flow variable 목록 제공
-- `m_flowVarToInsert` 필드에 `@ChoicesProvider(AllFlowVarsProvider.class)` 적용 → 드롭다운으로 표시
-- 사용자가 드롭다운에서 flow variable 선택 → Insert 버튼 클릭 → SQL 끝에 `$$varName` 추가
-- 실행 시 `resolveFlowVariables()`가 `$$varName`을 실제 값으로 치환 (STRING → 싱글쿼트, INTEGER/DOUBLE → 숫자)
+## 개발 현황
 
-### 제한 사항
-- 커서 위치 삽입 불가 — `@NodeParameters` 기반에서는 커서 정보 없음, SQL 끝에 append만 가능
-- expressions 노드처럼 커서 위치에 삽입하려면 `NodeDialog` + JS 프론트엔드 필요 (작업량 매우 큼)
-- 현재는 드롭다운 선택 + Insert 방식으로 유지
+### 완료된 노드 (6개)
+1. Spark Unpivot — API (`Dataset.unpivot()`) — 완료
+2. Spark Multi Query — SQL (temp view + SELECT) — 완료
+3. Spark String to Number — SQL — 완료
+4. Spark Number to String — SQL — 완료
+5. Spark String to Date&Time — SQL — 완료
+6. Spark Expression — SQL (`withColumn + expr`) — WebUI 다이얼로그 구현 완료, **핵심 버그 미해결** (아래 참조)
 
-### 참고: expressions 노드 아키텍처 (향후 커스텀 WebUI 전환 시)
-- `NodeDialog` 인터페이스 직접 구현 (NOT `@NodeParameters`)
-- `ScriptingNodeSettingsService` + `GenericInitialDataBuilder` — RPC로 초기 데이터 전달
-- Vue/JS 커스텀 프론트엔드 (`js-src/dist/`) + Monaco Editor 번들
-- `InputOutputModel.flowVariables()` + `subItemCodeAliasTemplate` (Handlebars) 으로 삽입 텍스트 생성
-- 글로벌 pub/sub 이벤트 (`insertionEventHelper`) → `editor.getSelection()` 위치에 `pushEditOperations()`
-- `NodeFactory implements NodeDialogFactory` → `createNodeDialog()` 에서 `NodeDialog` 반환
+### 신규 개발 대상 (20개, 중요도순)
+
+| 순위 | 노드명 | 구현 방식 | 난이도 | 비고 |
+|:---:|--------|:---------:|:------:|------|
+| 1 | Rule Engine | Hybrid (SQL CASE WHEN + UI) | ★★★★☆ | IF-THEN 규칙 → CASE WHEN 변환. UI가 핵심 난이도 |
+| 2 | Duplicate Row Filter | API (`dropDuplicates()`) | ★★★☆☆ | 기본은 API, first/last 유지는 window function |
+| 3 | Row Splitter | API (`filter()` × 2) | ★★★☆☆ | 2개 출력 포트 구조 필요 |
+| 4 | Date&Time to String | SQL (`date_format()`) | ★★☆☆☆ | String to Date&Time 역방향. 패턴 재활용 |
+| 5 | Extract Date&Time Fields | SQL (`year()`, `month()` 등) | ★★☆☆☆ | 체크박스 선택 → 필드별 withColumn |
+| 6 | String Replacer | SQL (`regexp_replace()`, `replace()`) | ★★☆☆☆ | 리터럴/정규식 모드 선택 |
+| 7 | Rank | SQL Window Function | ★★★☆☆ | `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()` |
+| 8 | Constant Value Column | SQL (`lit()`) | ★☆☆☆☆ | 값 + 타입 + 컬럼명 입력 |
+| 9 | Column Combiner | SQL (`CONCAT_WS()`) | ★★☆☆☆ | 컬럼 선택 + 구분자 |
+| 10 | Cell Splitter | Hybrid (`SPLIT()` + 컬럼 생성) | ★★★☆☆ | 분할 후 최대 컬럼 수 사전 계산 필요 |
+| 11 | Numeric Binner | SQL (CASE WHEN) | ★★★★☆ | SQL 단순하나 구간 정의 UI 복잡 |
+| 12 | Round Double | SQL (`ROUND()`, `CEIL()`, `FLOOR()`) | ★☆☆☆☆ | 컬럼 + 자릿수 + 모드 |
+| 13 | Date&Time Difference | SQL (`DATEDIFF()`, `unix_timestamp`) | ★★☆☆☆ | 두 컬럼 + 단위 선택 |
+| 14 | Date&Time Shift | SQL (`DATE_ADD()`, `TIMESTAMPADD()`) | ★★☆☆☆ | 컬럼 + 이동량 + 단위 |
+| 15 | Case Convert | SQL (`UPPER()`, `LOWER()`, `INITCAP()`) | ★☆☆☆☆ | 컬럼 + 모드 선택 |
+| 16 | Lag Column | SQL Window Function (`LAG()`, `LEAD()`) | ★★★☆☆ | 그룹/정렬 설정 필요 |
+| 17 | Top k Selector | SQL (`ORDER BY LIMIT` / Window) | ★★★☆☆ | 단순 Top-k 쉬움, 그룹별은 window |
+| 18 | Ungroup (Explode) | API (`explode()`) | ★★★☆☆ | 배열/문자열 → 행 펼치기 |
+| 19 | String Manipulation | Hybrid (SQL 함수 기반) | ★★★★★ | Expression 노드와 중복. Expression 보강 추천 |
+| 20 | Transpose | API (collect 후 재구성) | ★★★★★ | 분산 환경 제약. 소규모 데이터 한정 |
+
+### 구현 방식 분류
+
+- **API 전용/우선 (4개)**: Duplicate Row Filter, Row Splitter, Ungroup, Transpose
+- **Spark SQL `expr()`/`withColumn` (9개)**: Date&Time to String, Extract Fields, String Replacer, Column Combiner, Date&Time Diff/Shift, Constant Value, Round Double, Case Convert
+- **Spark SQL Window Function (4개)**: Rank, Lag Column, Top k Selector, Numeric Binner
+- **Hybrid SQL+API (3개)**: Rule Engine, Cell Splitter, String Manipulation
+
+### 제한사항
+- **String Manipulation**: Expression 노드와 기능 중복 → Expression 노드에 문자열 함수 템플릿 보강 추천
+- **Transpose**: 분산 환경에서 진정한 Transpose 구현 매우 어려움. 소규모 데이터(행 수 제한 필수)에서만 실용적
+- **구현 불가능 노드**: 없음 (20개 모두 구현 가능)

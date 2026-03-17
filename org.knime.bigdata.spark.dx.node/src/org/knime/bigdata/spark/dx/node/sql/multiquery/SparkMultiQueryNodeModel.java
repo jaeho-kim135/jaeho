@@ -2,7 +2,10 @@ package org.knime.bigdata.spark.dx.node.sql.multiquery;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.knime.bigdata.spark.core.context.SparkContextID;
 import org.knime.bigdata.spark.core.context.SparkContextUtil;
@@ -20,6 +23,7 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
+import org.knime.core.node.workflow.FlowVariable;
 
 /**
  * Node model for the Spark Multi Query node. Applies a SQL expression template
@@ -29,6 +33,14 @@ public class SparkMultiQueryNodeModel extends SparkNodeModel {
 
     /** The unique Spark job id. */
     public static final String JOB_ID = SparkMultiQueryNodeModel.class.getCanonicalName();
+
+    /**
+     * Pattern matching $$varName tokens in SQL expressions.
+     * $$  — double-dollar prefix distinguishes flow variables from the $columnS column placeholder.
+     * Group 1 captures the variable name (letters, digits, underscores, hyphens, dots).
+     */
+    private static final Pattern FLOW_VAR_PATTERN =
+        Pattern.compile("\\$\\$([A-Za-z_][A-Za-z0-9_.\\-]*)");
 
     private final SparkMultiQuerySettings m_settings = new SparkMultiQuerySettings();
 
@@ -83,30 +95,8 @@ public class SparkMultiQueryNodeModel extends SparkNodeModel {
                 "Output column pattern must contain '" + SparkMultiQuerySettings.COLUMN_PLACEHOLDER + "'.");
         }
 
-        // Validate: keepOriginal=true requires pattern different from $columnS
-        if (m_settings.keepOriginalColumns()
-                && SparkMultiQuerySettings.COLUMN_PLACEHOLDER.equals(outputPattern.trim())) {
-            throw new InvalidSettingsException(
-                "When 'Keep original columns' is enabled, the output column pattern must differ from '"
-                + SparkMultiQuerySettings.COLUMN_PLACEHOLDER
-                + "' to avoid duplicate column names. Example: " + SparkMultiQuerySettings.COLUMN_PLACEHOLDER + "_new");
-        }
-
-        // Validate no output alias conflicts with existing non-target columns
-        if (m_settings.keepOriginalColumns()) {
-            final Set<String> existingCols = new HashSet<>();
-            for (int i = 0; i < tableSpec.getNumColumns(); i++) {
-                existingCols.add(tableSpec.getColumnSpec(i).getName());
-            }
-            for (String col : targetColumns) {
-                final String alias = outputPattern.replace(SparkMultiQuerySettings.COLUMN_PLACEHOLDER, col);
-                if (existingCols.contains(alias) && !targetColumns.contains(alias)) {
-                    throw new InvalidSettingsException(
-                        "Output column name '" + alias + "' conflicts with an existing column. "
-                        + "Change the output column pattern.");
-                }
-            }
-        }
+        // Note: when keepOriginal=true and outputPattern=$columnS, the Spark job
+        // auto-generates unique names by appending _1, _2, etc. to avoid duplicates.
 
         // Output spec is null because the SQL expression may change column types
         return new PortObjectSpec[]{null};
@@ -120,12 +110,13 @@ public class SparkMultiQueryNodeModel extends SparkNodeModel {
         final String outputObject = SparkIDs.createSparkDataObjectID();
 
         final List<String> targetColumns = m_settings.getTargetColumns();
+        final String resolvedSql = resolveFlowVariables(m_settings.getSqlExpression());
 
         final SparkMultiQueryJobInput jobInput = new SparkMultiQueryJobInput(
             inputObject,
             outputObject,
             targetColumns.toArray(new String[0]),
-            m_settings.getSqlExpression(),
+            resolvedSql,
             m_settings.keepOriginalColumns(),
             m_settings.getOutputColumnPattern());
 
@@ -139,6 +130,54 @@ public class SparkMultiQueryNodeModel extends SparkNodeModel {
             KNIMEToIntermediateConverterRegistry.convertSpec(jobOutput.getSpec(outputObject));
         final SparkDataTable resultTable = new SparkDataTable(contextID, outputObject, outputSpec);
         return new PortObject[]{new SparkDataPortObject(resultTable)};
+    }
+
+    /**
+     * Resolves {@code $$varName} tokens in a SQL expression by substituting the current flow
+     * variable values at execution time.
+     * <ul>
+     *   <li>STRING variables are substituted as single-quoted SQL literals (single quotes inside
+     *       the value are escaped by doubling: {@code '} → {@code ''}).</li>
+     *   <li>INTEGER and DOUBLE variables are substituted as unquoted numeric literals.</li>
+     *   <li>Other variable types are treated as STRING (quoted).</li>
+     * </ul>
+     *
+     * @param sql the SQL expression template (may contain {@code $$varName} tokens)
+     * @return the SQL with all {@code $$varName} tokens replaced by their current values
+     * @throws InvalidSettingsException if a referenced variable is not found
+     */
+    @SuppressWarnings("deprecation")
+    private String resolveFlowVariables(final String sql) throws InvalidSettingsException {
+        if (!sql.contains("$$")) {
+            return sql;
+        }
+        final Map<String, FlowVariable> flowVars = getAvailableFlowVariables();
+        final Matcher m = FLOW_VAR_PATTERN.matcher(sql);
+        final StringBuffer sb = new StringBuffer();
+        while (m.find()) {
+            final String varName = m.group(1);
+            final FlowVariable var = flowVars.get(varName);
+            if (var == null) {
+                throw new InvalidSettingsException(
+                    "Flow variable '$$" + varName + "' referenced in the SQL expression was not found. "
+                    + "Available variables: " + String.join(", ", flowVars.keySet()));
+            }
+            final String replacement;
+            switch (var.getType()) {
+                case INTEGER:
+                    replacement = String.valueOf(var.getIntValue());
+                    break;
+                case DOUBLE:
+                    replacement = String.valueOf(var.getDoubleValue());
+                    break;
+                default: // STRING and any other types — quote as SQL string literal
+                    replacement = "'" + var.getStringValue().replace("'", "''") + "'";
+                    break;
+            }
+            m.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+        }
+        m.appendTail(sb);
+        return sb.toString();
     }
 
     @Override

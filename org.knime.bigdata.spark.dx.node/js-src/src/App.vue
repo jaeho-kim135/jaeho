@@ -2,8 +2,10 @@
   <div class="spark-expression" :class="{ compact: isCompact }">
     <!-- Enlarged (full) mode: 3-panel layout -->
     <template v-if="!isCompact">
+      <div class="drag-overlay" v-if="isDragging" :style="{ cursor: dragCursor }"
+           @mousemove="onDrag" @mouseup="stopDrag"></div>
       <div class="main-layout">
-        <div class="left-panel">
+        <div class="left-panel" :style="{ width: leftWidth + 'px' }">
           <InputColumns
             :columns="columns"
             @insert="insertTextIntoEditor"
@@ -13,29 +15,36 @@
             @insert="insertTextIntoEditor"
           />
         </div>
-        <div class="center-panel">
-          <ExpressionEditors
-            ref="editors"
-            :expressions="settings.expressions"
-            :outputModes="settings.outputModes"
-            :columnNames="settings.columnNames"
-            :columns="columns"
-            @update="onSettingsUpdate"
-            @evaluate="evaluateExpressions"
-          />
-          <OutputPreview
-            ref="outputPreview"
-            :preview="previewData"
-            :error="previewError"
-            :loading="isEvaluating"
-            :inputPreview="inputPreviewData"
-            :inputError="inputPreviewError"
-            :inputLoading="isLoadingInput"
-            @evaluate="evaluateExpressions"
-            @loadInput="loadInputTable"
-          />
+        <div class="splitter-v" @mousedown="startDragLeft"></div>
+        <div class="center-panel" ref="centerPanel">
+          <div class="expr-editor-area" :style="{ height: editorHeight + 'px' }">
+            <ExpressionEditors
+              ref="editors"
+              :expressions="settings.expressions"
+              :outputModes="settings.outputModes"
+              :columnNames="settings.columnNames"
+              :columns="columns"
+              @update="onSettingsUpdate"
+              @evaluate="evaluateExpressions"
+            />
+          </div>
+          <div class="splitter-h" @mousedown="startDragCenter"></div>
+          <div class="preview-area">
+            <OutputPreview
+              ref="outputPreview"
+              :preview="previewData"
+              :error="previewError"
+              :loading="isEvaluating"
+              :inputPreview="inputPreviewData"
+              :inputError="inputPreviewError"
+              :inputLoading="isLoadingInput"
+              @evaluate="evaluateExpressions"
+              @loadInput="loadInputTable"
+            />
+          </div>
         </div>
-        <div class="right-panel">
+        <div class="splitter-v" @mousedown="startDragRight"></div>
+        <div class="right-panel" :style="{ width: rightWidth + 'px' }">
           <FunctionCatalog
             :catalog="functionCatalog"
             @insert="insertTextIntoEditor"
@@ -90,6 +99,7 @@ export default {
   setup() {
     const editors = ref(null)
     const outputPreview = ref(null)
+    const centerPanel = ref(null)
     const columns = ref([])
     const flowVariables = ref([])
     const functionCatalog = ref([])
@@ -101,6 +111,14 @@ export default {
     const isLoadingInput = ref(false)
     const isCompact = ref(window.innerWidth < 600)
 
+    // Splitter state
+    const leftWidth = ref(200)
+    const rightWidth = ref(220)
+    const editorHeight = ref(Math.round(window.innerHeight * 0.45))
+    const isDragging = ref(false)
+    const dragCursor = ref('')
+    let dragging = null
+
     const settings = reactive({
       expressions: [''],
       outputModes: ['APPEND'],
@@ -109,6 +127,45 @@ export default {
 
     const onResize = () => {
       isCompact.value = window.innerWidth < 600
+    }
+
+    // --- Splitter drag handlers ---
+    function startDragLeft(e) {
+      dragging = 'left'
+      isDragging.value = true
+      dragCursor.value = 'col-resize'
+      e.preventDefault()
+    }
+    function startDragRight(e) {
+      dragging = 'right'
+      isDragging.value = true
+      dragCursor.value = 'col-resize'
+      e.preventDefault()
+    }
+    function startDragCenter(e) {
+      dragging = 'center'
+      isDragging.value = true
+      dragCursor.value = 'row-resize'
+      e.preventDefault()
+    }
+    function onDrag(e) {
+      if (!dragging) return
+      e.preventDefault()
+      if (dragging === 'left') {
+        leftWidth.value = Math.max(100, Math.min(e.clientX, window.innerWidth * 0.4))
+      } else if (dragging === 'right') {
+        rightWidth.value = Math.max(100, Math.min(window.innerWidth - e.clientX, window.innerWidth * 0.4))
+      } else if (dragging === 'center') {
+        if (centerPanel.value) {
+          const rect = centerPanel.value.getBoundingClientRect()
+          editorHeight.value = Math.max(80, Math.min(e.clientY - rect.top, rect.height - 80))
+        }
+      }
+    }
+    function stopDrag() {
+      dragging = null
+      isDragging.value = false
+      dragCursor.value = ''
     }
 
     onMounted(async () => {
@@ -257,7 +314,9 @@ export default {
       editors, outputPreview, columns, flowVariables, functionCatalog, settings,
       previewData, previewError, isEvaluating, isCompact,
       inputPreviewData, inputPreviewError, isLoadingInput,
-      onSettingsUpdate, insertTextIntoEditor, evaluateExpressions, loadInputTable
+      leftWidth, rightWidth, editorHeight, centerPanel, isDragging, dragCursor,
+      onSettingsUpdate, insertTextIntoEditor, evaluateExpressions, loadInputTable,
+      startDragLeft, startDragRight, startDragCenter, onDrag, stopDrag
     }
   }
 }
@@ -283,6 +342,17 @@ html, body, #app {
   flex-direction: column;
 }
 
+/* Drag overlay - captures mouse events during resize */
+.drag-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  user-select: none;
+}
+
 /* Enlarged (full) mode */
 .main-layout {
   display: flex;
@@ -290,9 +360,7 @@ html, body, #app {
   overflow: hidden;
 }
 .left-panel {
-  width: 200px;
-  min-width: 160px;
-  border-right: 1px solid #ddd;
+  min-width: 100px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -305,20 +373,57 @@ html, body, #app {
   min-width: 0;
 }
 .right-panel {
-  width: 220px;
-  min-width: 180px;
-  border-left: 1px solid #ddd;
+  min-width: 100px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* Editor / Preview height ratio */
-.center-panel .expression-editors {
+/* Vertical splitter (left/right borders) */
+.splitter-v {
+  width: 5px;
+  cursor: col-resize;
+  background: #e0e0e0;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.splitter-v:hover {
+  background: #1e88e5;
+}
+
+/* Horizontal splitter (editor/preview border) */
+.splitter-h {
+  height: 6px;
+  cursor: row-resize;
+  background: #e0e0e0;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  transition: background 0.15s;
+}
+.splitter-h:hover {
+  background: #1e88e5;
+}
+
+/* Editor / Preview areas */
+.expr-editor-area {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.expr-editor-area .expression-editors {
   flex: 1;
   min-height: 0;
 }
-.center-panel .output-preview {
+.preview-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.preview-area .output-preview {
   flex: 1;
   min-height: 0;
 }

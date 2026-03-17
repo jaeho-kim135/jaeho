@@ -8,6 +8,11 @@
             name="SQL"
             path="/toolintegration/spark">
       </category>
+      <category
+            level-id="extract"
+            name="Extract"
+            path="/toolintegration/spark/column">
+      </category>
    </extension>
    <extension
          point="org.knime.bigdata.spark.core.SparkNodeFactoryProvider">

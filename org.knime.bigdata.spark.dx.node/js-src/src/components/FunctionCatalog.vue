@@ -36,8 +36,13 @@
           </template>
         </template>
       </div>
+      <!-- Splitter between list and detail -->
+      <div class="fn-splitter-h" v-if="selectedFn" @mousedown="startDragDetail"></div>
+      <div class="fn-drag-overlay" v-if="isDraggingDetail"
+           @mousemove="onDragDetail" @mouseup="stopDragDetail"
+           style="cursor: row-resize;"></div>
       <!-- Function detail panel -->
-      <div class="fn-detail" v-if="selectedFn">
+      <div class="fn-detail" v-if="selectedFn" :style="{ height: detailHeight + 'px' }">
         <div class="fn-detail-header">{{ selectedFn.label }}</div>
         <div class="fn-detail-desc" v-if="selectedFn.description">{{ selectedFn.description }}</div>
         <div class="fn-detail-desc" v-else>No description available.</div>
@@ -64,6 +69,8 @@ export default {
     const searchQuery = ref('')
     const expandedCategories = reactive({})
     const selectedFn = ref(null)
+    const detailHeight = ref(150)
+    const isDraggingDetail = ref(false)
 
     watch(() => props.catalog, (newCatalog) => {
       if (newCatalog) {
@@ -126,7 +133,25 @@ export default {
       event.dataTransfer.effectAllowed = 'copy'
     }
 
-    return { searchQuery, expandedCategories, filteredCatalog, selectedFn, toggleCategory, selectFunction, insertFunction, onDragStart }
+    function startDragDetail(e) {
+      isDraggingDetail.value = true
+      e.preventDefault()
+    }
+    function onDragDetail(e) {
+      if (!isDraggingDetail.value) return
+      e.preventDefault()
+      const catalogBody = e.currentTarget.closest('.catalog-body') || e.currentTarget.parentElement.querySelector('.catalog-body')
+      if (catalogBody) {
+        const rect = catalogBody.getBoundingClientRect()
+        const bottomY = rect.bottom
+        detailHeight.value = Math.max(60, Math.min(bottomY - e.clientY, rect.height - 100))
+      }
+    }
+    function stopDragDetail() {
+      isDraggingDetail.value = false
+    }
+
+    return { searchQuery, expandedCategories, filteredCatalog, selectedFn, detailHeight, isDraggingDetail, toggleCategory, selectFunction, insertFunction, onDragStart, startDragDetail, onDragDetail, stopDragDetail }
   }
 }
 </script>
@@ -225,13 +250,34 @@ export default {
   font-weight: 600;
 }
 
+/* Splitter between list and detail */
+.fn-splitter-h {
+  height: 6px;
+  cursor: row-resize;
+  background: #e0e0e0;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  transition: background 0.15s;
+}
+.fn-splitter-h:hover {
+  background: #1e88e5;
+}
+.fn-drag-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  user-select: none;
+}
+
 /* Detail panel */
 .fn-detail {
-  border-top: 1px solid #ddd;
   padding: 12px;
   background: #fafafa;
   flex-shrink: 0;
-  max-height: 300px;
   overflow-y: auto;
 }
 .fn-detail-header {

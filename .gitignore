@@ -1,0 +1,4 @@
+/.metadata/
+**/bin/
+**/node_modules/
+**/dist/dist/
