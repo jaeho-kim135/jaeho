@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<knimeNode xmlns="http://knime.org/node/v3.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://knime.org/node/v3.1 http://knime.org/node/v3.1.xsd"
+    icon="string_number.png" type="Manipulator">
+    <name>Spark String to Number(Hyim)</name>
+    <shortDescription>
+        Converts String columns to numeric types (Integer, Double, Long) in a Spark DataFrame.
+    </shortDescription>
+    <fullDescription>
+        <intro>
+            <p>
+                This node converts selected String columns in a Spark DataFrame to numeric
+                types (Integer, Double, or Long). It supports configurable decimal and thousands
+                separators, optional type suffix handling (d/D/f/F), and error handling.
+            </p>
+            <p>
+                Values that cannot be parsed are set to missing (null) by default.
+                Enable "Fail on error" to abort execution when conversion fails.
+            </p>
+        </intro>
+        <tab name="Column Selection">
+            <option name="Included Columns">
+                Select the String columns to convert to numbers. Only String-type
+                columns from the input Spark DataFrame are shown.
+            </option>
+        </tab>
+        <tab name="Parsing Options">
+            <option name="Type">
+                The target numeric type: Integer (32-bit), Double (64-bit floating point),
+                or Long (64-bit integer).
+            </option>
+            <option name="Decimal separator">
+                Character used as decimal point. Default is '.'. Leave empty to use default.
+            </option>
+            <option name="Thousands separator">
+                Character used as thousands grouping separator. Leave empty to disable
+                thousands separator handling.
+            </option>
+            <option name="Accept type suffix (d, D, f, F)">
+                If checked, numeric strings ending with d/D/f/F suffixes (e.g. "1.5d")
+                are accepted. If unchecked, such values are treated as conversion errors.
+            </option>
+            <option name="Fail on error">
+                If checked, the node fails when any value cannot be converted.
+                If unchecked, unconvertible values become missing (null).
+            </option>
+        </tab>
+    </fullDescription>
+    <ports>
+        <inPort index="0" name="Spark DataFrame">
+            Spark DataFrame containing String columns to convert.
+        </inPort>
+        <outPort index="0" name="Spark DataFrame">
+            Spark DataFrame with selected columns converted to numeric types.
+        </outPort>
+    </ports>
+</knimeNode>
