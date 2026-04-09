@@ -1,6 +1,8 @@
 package org.knime.bigdata.spark.dx.node.manipulate.datetimeshift;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.port.data.SparkDataPortObjectSpec;
 import org.knime.core.data.DataColumnSpec;
@@ -121,8 +123,8 @@ class SparkDateTimeShiftNodeParameters implements NodeParameters {
             return context.getInPortSpec(0)
                 .filter(spec -> spec instanceof SparkDataPortObjectSpec)
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
-                .map(tableSpec -> tableSpec.stream().toList())
-                .orElse(List.of());
+                .map(tableSpec -> tableSpec.stream().collect(Collectors.toList()))
+                .orElse(Collections.<DataColumnSpec>emptyList());
         }
     }
 

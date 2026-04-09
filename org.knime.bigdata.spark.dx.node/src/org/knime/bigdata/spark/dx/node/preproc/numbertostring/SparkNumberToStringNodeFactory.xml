@@ -2,7 +2,7 @@
 <knimeNode xmlns="http://knime.org/node/v3.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://knime.org/node/v3.1 http://knime.org/node/v3.1.xsd"
     icon="number_string.png" type="Manipulator">
-    <name>Spark Number to String(Hyim)</name>
+    <name>Spark Number to String(HYIM)</name>
     <shortDescription>
         Converts numeric columns to String type in a Spark DataFrame.
     </shortDescription>

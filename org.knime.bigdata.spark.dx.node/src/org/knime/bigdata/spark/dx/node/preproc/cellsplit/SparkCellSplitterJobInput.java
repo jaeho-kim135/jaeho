@@ -92,12 +92,12 @@ public class SparkCellSplitterJobInput extends JobInput {
 
     /** @return the fixed number of output columns */
     public int getFixedSize() {
-        return get(FIXED_SIZE);
+        return getInteger(FIXED_SIZE);
     }
 
     /** @return the row scan limit for auto-detect mode */
     public int getScanLimit() {
-        return get(SCAN_LIMIT);
+        return getInteger(SCAN_LIMIT);
     }
 
     /** @return true if whitespace should be trimmed */

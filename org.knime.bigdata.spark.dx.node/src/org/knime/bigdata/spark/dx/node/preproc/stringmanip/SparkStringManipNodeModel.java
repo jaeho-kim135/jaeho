@@ -1,5 +1,6 @@
 package org.knime.bigdata.spark.dx.node.preproc.stringmanip;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -129,11 +130,11 @@ public class SparkStringManipNodeModel extends SparkNodeModel {
      */
     @SuppressWarnings("deprecation")
     private String resolveFlowVariables(final String expression) {
-        Map<String, FlowVariable> flowVars = Map.of();
+        Map<String, FlowVariable> flowVars = Collections.emptyMap();
         try {
             final NodeContainer nc = NodeContext.getContext().getNodeContainer();
             if (nc instanceof NativeNodeContainer) {
-                final var stack = ((NativeNodeContainer) nc).getFlowObjectStack();
+                final org.knime.core.node.workflow.FlowObjectStack stack = ((NativeNodeContainer) nc).getFlowObjectStack();
                 if (stack != null) {
                     flowVars = stack.getAvailableFlowVariables(FlowVariable.Type.values());
                 }

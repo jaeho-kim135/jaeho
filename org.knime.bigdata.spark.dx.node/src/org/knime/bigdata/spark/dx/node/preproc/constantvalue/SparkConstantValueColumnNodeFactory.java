@@ -17,15 +17,13 @@ public final class SparkConstantValueColumnNodeFactory
     implements SparkNodeFactory<SparkConstantValueColumnNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Constant Value Column (Hyim)")
+        .name("Spark Constant Value Column (HYIM)")
         .icon("icon.png")
         .shortDescription("Adds or replaces a column with a constant value in a Spark DataFrame.")
-        .fullDescription("""
-            <p>Adds a new column filled with a constant value, or replaces an existing column
-            with a constant value in a Spark DataFrame.</p>
-            <p>Supported value types: String, Integer, Long, Double, Boolean, Date, and Timestamp.
-            The column can also be filled with missing (null) values of the selected type.</p>
-            """)
+        .fullDescription("<p>Adds a new column filled with a constant value, or replaces an existing column "
+            + "with a constant value in a Spark DataFrame.</p>"
+            + "<p>Supported value types: String, Integer, Long, Double, Boolean, Date, and Timestamp. "
+            + "The column can also be filled with missing (null) values of the selected type.</p>")
         .modelSettingsClass(SparkConstantValueColumnNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame to add or replace a constant value column.")

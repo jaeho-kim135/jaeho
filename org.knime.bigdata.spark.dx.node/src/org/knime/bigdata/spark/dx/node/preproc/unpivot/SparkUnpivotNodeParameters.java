@@ -1,8 +1,10 @@
 package org.knime.bigdata.spark.dx.node.preproc.unpivot;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.context.SparkContextID;
 import org.knime.bigdata.spark.core.context.SparkContextUtil;
@@ -103,8 +105,8 @@ class SparkUnpivotNodeParameters implements NodeParameters {
             return context.getInPortSpec(0)
                 .filter(spec -> spec instanceof SparkDataPortObjectSpec)
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
-                .map(tableSpec -> tableSpec.stream().toList())
-                .orElse(List.of());
+                .map(tableSpec -> tableSpec.stream().collect(Collectors.toList()))
+                .orElse(Collections.<DataColumnSpec>emptyList());
         }
     }
 
@@ -193,20 +195,31 @@ class SparkUnpivotNodeParameters implements NodeParameters {
         @Override
         public SortOption load(final NodeSettingsRO settings) throws InvalidSettingsException {
             String val = settings.getString(CFG_KEY, SparkUnpivotSettings.SORT_NONE);
-            return switch (val) {
-                case SparkUnpivotSettings.SORT_BY_RETAINED -> SortOption.RETAINED;
-                case SparkUnpivotSettings.SORT_BY_VARIABLE -> SortOption.VARIABLE;
-                default -> SortOption.NONE;
-            };
+            if (SparkUnpivotSettings.SORT_BY_RETAINED.equals(val)) {
+                return SortOption.RETAINED;
+            } else if (SparkUnpivotSettings.SORT_BY_VARIABLE.equals(val)) {
+                return SortOption.VARIABLE;
+            } else {
+                return SortOption.NONE;
+            }
         }
 
         @Override
         public void save(final SortOption obj, final NodeSettingsWO settings) {
-            String val = switch (obj != null ? obj : SortOption.NONE) {
-                case RETAINED -> SparkUnpivotSettings.SORT_BY_RETAINED;
-                case VARIABLE -> SparkUnpivotSettings.SORT_BY_VARIABLE;
-                case NONE -> SparkUnpivotSettings.SORT_NONE;
-            };
+            final SortOption opt = obj != null ? obj : SortOption.NONE;
+            final String val;
+            switch (opt) {
+                case RETAINED:
+                    val = SparkUnpivotSettings.SORT_BY_RETAINED;
+                    break;
+                case VARIABLE:
+                    val = SparkUnpivotSettings.SORT_BY_VARIABLE;
+                    break;
+                case NONE:
+                default:
+                    val = SparkUnpivotSettings.SORT_NONE;
+                    break;
+            }
             settings.addString(CFG_KEY, val);
         }
 
@@ -250,7 +263,7 @@ class SparkUnpivotNodeParameters implements NodeParameters {
         @Override
         public Optional<TextMessage.Message> computeState(final NodeParametersInput context) {
             Optional<PortObject> portObjOpt = context.getInPortObject(0);
-            if (portObjOpt.isEmpty()) {
+            if (!portObjOpt.isPresent()) {
                 return Optional.of(new TextMessage.Message(
                     "Execute the upstream node first to enable validation.",
                     "", TextMessage.MessageType.INFO));
@@ -289,21 +302,10 @@ class SparkUnpivotNodeParameters implements NodeParameters {
                     .createRun(jobInput)
                     .run(contextID);
 
-                long inputRows = output.getInputRowCount();
-                long estimatedOutputRows = inputRows >= 0 ? inputRows * valueCols.length : -1;
-
-                StringBuilder msg = new StringBuilder("Validation succeeded.");
-                if (inputRows >= 0) {
-                    msg.append(String.format(
-                        " Estimated output rows: %,d × %d = %,d (max)",
-                        inputRows, valueCols.length, estimatedOutputRows));
-                    if (skipMissing) {
-                        msg.append(" — may be less due to 'Skip missing values'.");
-                    }
-                }
-
                 return Optional.of(new TextMessage.Message(
-                    msg.toString(), "", TextMessage.MessageType.SUCCESS));
+                    "Validation succeeded. " + valueCols.length
+                        + " value column(s) will be unpivoted.",
+                    "", TextMessage.MessageType.SUCCESS));
 
             } catch (Exception e) {
                 String errMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
@@ -314,18 +316,22 @@ class SparkUnpivotNodeParameters implements NodeParameters {
         }
 
         private static String orDefault(final String val, final String def) {
-            return (val != null && !val.isBlank()) ? val : def;
+            return (val != null && !val.trim().isEmpty()) ? val : def;
         }
 
         private static String toSortString(final SortOption opt) {
             if (opt == null) {
                 return SparkUnpivotSettings.SORT_NONE;
             }
-            return switch (opt) {
-                case RETAINED -> SparkUnpivotSettings.SORT_BY_RETAINED;
-                case VARIABLE -> SparkUnpivotSettings.SORT_BY_VARIABLE;
-                case NONE -> SparkUnpivotSettings.SORT_NONE;
-            };
+            switch (opt) {
+                case RETAINED:
+                    return SparkUnpivotSettings.SORT_BY_RETAINED;
+                case VARIABLE:
+                    return SparkUnpivotSettings.SORT_BY_VARIABLE;
+                case NONE:
+                default:
+                    return SparkUnpivotSettings.SORT_NONE;
+            }
         }
     }
 

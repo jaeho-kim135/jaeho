@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<knimeNode xmlns="http://knime.org/node/v3.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://knime.org/node/v3.1 http://knime.org/node/v3.1.xsd"
+    icon="icon.png" type="Manipulator">
+    <name>Spark Edit Column (HYIM)</name>
+    <shortDescription>
+        Renames, changes types, and reorders columns in a Spark DataFrame.
+    </shortDescription>
+    <fullDescription>
+        <intro>
+            <p>
+                Edits columns in a Spark DataFrame. All input columns are displayed in a table
+                where you can rename, change types, and reorder them using drag-and-drop or Up/Down buttons.
+            </p>
+            <p><b>Supported operations:</b></p>
+            <ul>
+                <li><b>Rename</b>: Enter a new name in the "New Name" column. Leave empty to keep the original name.</li>
+                <li><b>Type change</b>: Select a new type from the "New Type" dropdown.
+                    Supported types: String, Integer, Long, Double, Float, Boolean, Date, Timestamp.
+                    Note: Float is mapped to Double in KNIME.</li>
+                <li><b>Reorder</b>: Drag rows or use the Up/Down buttons to control output column order.</li>
+            </ul>
+        </intro>
+        <tab name="Column Editing">
+            <option name="Column Name">
+                The original column name from the input DataFrame (read-only).
+            </option>
+            <option name="New Name">
+                The new name for this column. Leave empty to keep the original name.
+            </option>
+            <option name="Type">
+                The original data type of the column (read-only).
+            </option>
+            <option name="New Type">
+                The target data type for type casting. Select "(keep)" to keep the original type.
+            </option>
+            <option name="Reorder">
+                Drag rows or use Up/Down buttons to change the output column order.
+            </option>
+            <option name="Reset All">
+                Resets all edits (names, types, and order) back to original values.
+            </option>
+        </tab>
+    </fullDescription>
+    <ports>
+        <inPort index="0" name="Spark DataFrame/RDD">
+            Spark DataFrame/RDD to edit columns.
+        </inPort>
+        <outPort index="0" name="Spark DataFrame/RDD">
+            Spark DataFrame/RDD with edited columns.
+        </outPort>
+    </ports>
+</knimeNode>

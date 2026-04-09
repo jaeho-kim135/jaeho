@@ -1,9 +1,9 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: DX Spark Jobs for Spark 3.5
+Bundle-Name: HYIM Spark Jobs for Spark 3.5
 Bundle-SymbolicName: org.knime.bigdata.spark3_5.dx;singleton:=true
 Bundle-Version: 1.0.2.qualifier
-Bundle-Vendor: DX
+Bundle-Vendor: HYIM
 Export-Package: org.knime.bigdata.spark3_5.dx.jobs.calculate.datetimediff,
  org.knime.bigdata.spark3_5.dx.jobs.convert.datetimetostring,
  org.knime.bigdata.spark3_5.dx.jobs.extract.datetimefields,
@@ -12,7 +12,9 @@ Export-Package: org.knime.bigdata.spark3_5.dx.jobs.calculate.datetimediff,
  org.knime.bigdata.spark3_5.dx.jobs.preproc.caseconvert,
  org.knime.bigdata.spark3_5.dx.jobs.preproc.cellsplit,
  org.knime.bigdata.spark3_5.dx.jobs.preproc.colcombine,
+ org.knime.bigdata.spark3_5.dx.jobs.preproc.concatenate,
  org.knime.bigdata.spark3_5.dx.jobs.preproc.constantvalue,
+ org.knime.bigdata.spark3_5.dx.jobs.preproc.editcolumn,
  org.knime.bigdata.spark3_5.dx.jobs.preproc.duplicates,
  org.knime.bigdata.spark3_5.dx.jobs.preproc.numbertostring,
  org.knime.bigdata.spark3_5.dx.jobs.preproc.stringtodatetime,
@@ -36,6 +38,6 @@ Require-Bundle: org.knime.core;bundle-version="[5.6.0,6.0.0)",
  org.knime.bigdata.spark3_5;bundle-version="[5.6.0,6.0.0)",
  org.apache.spark_2.12;bundle-version="[3.5.6,3.6.0)",
  org.scala-lang.scala-library;bundle-version="[2.12.0,2.13.0)"
-Bundle-RequiredExecutionEnvironment: JavaSE-17
+Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Bundle-ActivationPolicy: lazy
 Automatic-Module-Name: org.knime.bigdata.spark3_5.dx

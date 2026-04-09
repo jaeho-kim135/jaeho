@@ -26,7 +26,7 @@ public final class SparkCellSplitterSettings {
     private boolean m_useRegex = false;
     private String m_sizeMode = "FIXED";
     private int m_fixedSize = 3;
-    private int m_scanLimit = 50000;
+    private int m_scanLimit = 10000;
     private boolean m_trim = true;
     private boolean m_useEmptyString = false;
     private boolean m_removeInputCol = false;

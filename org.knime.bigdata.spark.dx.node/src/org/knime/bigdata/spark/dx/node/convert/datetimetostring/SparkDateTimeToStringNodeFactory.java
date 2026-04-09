@@ -17,18 +17,17 @@ public final class SparkDateTimeToStringNodeFactory
     implements SparkNodeFactory<SparkDateTimeToStringNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Date&Time to String (Hyim)")
+        .name("Spark Date&Time to String (HYIM)")
         .icon("icon.png")
         .shortDescription("Converts date/time columns to string columns using Spark's date_format().")
-        .fullDescription("""
-            <p>Converts one or more date/time columns of a Spark DataFrame to string columns
-            using Spark's <tt>date_format()</tt> function.</p>
-            <p>The format pattern follows Java/Spark's SimpleDateFormat convention
-            (e.g., <tt>yyyy-MM-dd HH:mm:ss</tt>). An optional locale can be specified
-            for locale-sensitive patterns (month/day names).</p>
-            <p>Selected columns can either be replaced in-place or appended as new columns
-            with a configurable suffix.</p>
-            """)
+        .fullDescription(
+            "<p>Converts one or more date/time columns of a Spark DataFrame to string columns\n"
+            + "using Spark's <tt>date_format()</tt> function.</p>\n"
+            + "<p>The format pattern follows Java/Spark's SimpleDateFormat convention\n"
+            + "(e.g., <tt>yyyy-MM-dd HH:mm:ss</tt>). An optional locale can be specified\n"
+            + "for locale-sensitive patterns (month/day names).</p>\n"
+            + "<p>Selected columns can either be replaced in-place or appended as new columns\n"
+            + "with a configurable suffix.</p>")
         .modelSettingsClass(SparkDateTimeToStringNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame containing date/time columns to convert.")

@@ -1,6 +1,7 @@
 package org.knime.bigdata.spark.dx.node.manipulate.datetimeshift;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.knime.core.node.InvalidSettingsException;
@@ -28,7 +29,7 @@ public final class SparkDateTimeShiftSettings {
     private static final String KEY_EXCLUDED_NAMES = "excluded_names";
     private static final String KEY_ENFORCE_OPTION = "enforce_option";
 
-    private List<String> m_columns = List.of();
+    private List<String> m_columns = Collections.emptyList();
     private String m_shiftMode = "FIXED";
     private int m_shiftValue = 1;
     private String m_shiftColumn = "";
@@ -153,7 +154,7 @@ public final class SparkDateTimeShiftSettings {
 
     private static List<String> loadColumnFilterIncluded(final NodeSettingsRO settings, final String key) {
         if (!settings.containsKey(key)) {
-            return List.of();
+            return Collections.emptyList();
         }
         try {
             final NodeSettingsRO sub = settings.getNodeSettings(key);
@@ -166,7 +167,7 @@ public final class SparkDateTimeShiftSettings {
         } catch (final InvalidSettingsException e) {
             // ignore
         }
-        return List.of();
+        return Collections.emptyList();
     }
 
     private static void validateColumnFilter(final NodeSettingsRO settings, final String key)

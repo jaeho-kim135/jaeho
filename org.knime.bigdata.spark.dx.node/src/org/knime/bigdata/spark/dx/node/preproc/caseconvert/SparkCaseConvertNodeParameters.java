@@ -1,6 +1,8 @@
 package org.knime.bigdata.spark.dx.node.preproc.caseconvert;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -93,8 +95,8 @@ class SparkCaseConvertNodeParameters implements NodeParameters {
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
                 .map(tableSpec -> tableSpec.stream()
                     .filter(cs -> cs.getType().isCompatible(StringValue.class))
-                    .toList())
-                .orElse(List.of());
+                    .collect(Collectors.toList()))
+                .orElse(Collections.<DataColumnSpec>emptyList());
         }
     }
 
@@ -159,11 +161,14 @@ class SparkCaseConvertNodeParameters implements NodeParameters {
         @Override
         public CaseMode load(final NodeSettingsRO settings) throws InvalidSettingsException {
             String val = settings.getString(CFG_KEY, "UPPERCASE");
-            return switch (val) {
-                case "LOWERCASE" -> CaseMode.LOWERCASE;
-                case "TITLE_CASE" -> CaseMode.TITLE_CASE;
-                default -> CaseMode.UPPERCASE;
-            };
+            switch (val) {
+                case "LOWERCASE":
+                    return CaseMode.LOWERCASE;
+                case "TITLE_CASE":
+                    return CaseMode.TITLE_CASE;
+                default:
+                    return CaseMode.UPPERCASE;
+            }
         }
 
         @Override
@@ -199,7 +204,7 @@ class SparkCaseConvertNodeParameters implements NodeParameters {
         @Override
         public Optional<TextMessage.Message> computeState(final NodeParametersInput context) {
             Optional<PortObject> portObjOpt = context.getInPortObject(0);
-            if (portObjOpt.isEmpty()) {
+            if (!portObjOpt.isPresent()) {
                 return Optional.of(new TextMessage.Message(
                     "Execute the upstream node first to enable evaluation.",
                     "", TextMessage.MessageType.INFO));

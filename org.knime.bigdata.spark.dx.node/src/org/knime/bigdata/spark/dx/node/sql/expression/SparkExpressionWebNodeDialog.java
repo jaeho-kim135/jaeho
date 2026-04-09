@@ -1,6 +1,9 @@
 package org.knime.bigdata.spark.dx.node.sql.expression;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,6 +13,8 @@ import java.util.Set;
 import org.knime.bigdata.spark.core.port.data.SparkDataPortObjectSpec;
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.node.workflow.FlowObjectStack;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.core.node.workflow.NodeContext;
 import org.knime.core.webui.data.RpcDataService;
@@ -34,33 +39,30 @@ import org.knime.scripting.editor.WorkflowControl;
 @SuppressWarnings("restriction")
 final class SparkExpressionWebNodeDialog implements NodeDialog {
 
+    private static final String BASE = "/js-src/dist/";
+
     @Override
     public Page getPage() {
         return Page.create()
-            .fromString(() -> SparkExpressionWebNodeDialog.class
-                .getResourceAsStream("/js-src/dist/spark-expression.html"))
+            .fromString(() -> SparkExpressionWebNodeDialog.class.getResourceAsStream(BASE + "spark-expression.html"))
             .relativePath("spark-expression.html")
-            .addResource(() -> SparkExpressionWebNodeDialog.class
-                .getResourceAsStream("/js-src/dist/assets/spark-expression.js"),
-                "assets/spark-expression.js")
-            .addResource(() -> SparkExpressionWebNodeDialog.class
-                .getResourceAsStream("/js-src/dist/assets/spark-expression.css"),
-                "assets/spark-expression.css")
-            .addResource(() -> SparkExpressionWebNodeDialog.class
-                .getResourceAsStream("/js-src/dist/assets/index.js"),
-                "assets/index.js");
+            .addResource(() -> SparkExpressionWebNodeDialog.class.getResourceAsStream(BASE + "assets/spark-expression.js"), "assets/spark-expression.js")
+            .addResource(() -> SparkExpressionWebNodeDialog.class.getResourceAsStream(BASE + "assets/spark-expression.css"), "assets/spark-expression.css")
+            .addResource(() -> SparkExpressionWebNodeDialog.class.getResourceAsStream(BASE + "assets/index.js"), "assets/index.js")
+            .addResource(() -> SparkExpressionWebNodeDialog.class.getResourceAsStream(BASE + "assets/index.css"), "assets/index.css")
+            .addResource(() -> SparkExpressionWebNodeDialog.class.getResourceAsStream(BASE + "assets/modulepreload-polyfill.js"), "assets/modulepreload-polyfill.js");
     }
 
     @Override
     public Set<SettingsType> getSettingsTypes() {
-        return Set.of(SettingsType.MODEL);
+        return Collections.singleton(SettingsType.MODEL);
     }
 
     @Override
     public NodeSettingsService getNodeSettingsService() {
-        final var workflowControl = new WorkflowControl(NodeContext.getContext().getNodeContainer());
+        final WorkflowControl workflowControl = new WorkflowControl(NodeContext.getContext().getNodeContainer());
 
-        final var initialDataBuilder = GenericInitialDataBuilder
+        final GenericInitialDataBuilder initialDataBuilder = GenericInitialDataBuilder
             .createDefaultInitialDataBuilder(NodeContext.getContext())
             .addDataSupplier("columnNamesAndTypes", () -> getColumnInfo(workflowControl))
             .addDataSupplier("flowVariables", () -> getFlowVariableInfo(workflowControl))
@@ -74,7 +76,7 @@ final class SparkExpressionWebNodeDialog implements NodeDialog {
 
     @Override
     public Optional<RpcDataService> createRpcDataService() {
-        final var rpcService = new SparkExpressionRpcService(NodeContext.getContext());
+        final SparkExpressionRpcService rpcService = new SparkExpressionRpcService(NodeContext.getContext());
 
         return Optional.of(RpcDataService.builder()
             .addService("SparkExpressionService", rpcService)
@@ -94,28 +96,28 @@ final class SparkExpressionWebNodeDialog implements NodeDialog {
      */
     private static Object getColumnInfo(final WorkflowControl workflowControl) {
         try {
-            final var inputInfo = workflowControl.getInputInfo();
+            final WorkflowControl.InputPortInfo[] inputInfo = workflowControl.getInputInfo();
             if (inputInfo == null || inputInfo.length == 0) {
-                return List.of();
+                return Collections.emptyList();
             }
 
             // DefaultSparkNodeFactory prepends a hidden Spark context port before user ports,
             // so the SparkDataPortObjectSpec may not be at index 0. Search all ports.
-            for (final var info : inputInfo) {
+            for (final WorkflowControl.InputPortInfo info : inputInfo) {
                 if (info == null) {
                     continue;
                 }
-                final var portSpec = info.portSpec();
+                final PortObjectSpec portSpec = info.portSpec();
                 if (portSpec instanceof SparkDataPortObjectSpec) {
                     return buildColumnList(((SparkDataPortObjectSpec) portSpec).getTableSpec());
                 }
             }
             // Fallback: try any port that provides a DataTableSpec
-            for (final var info : inputInfo) {
+            for (final WorkflowControl.InputPortInfo info : inputInfo) {
                 if (info == null) {
                     continue;
                 }
-                final var portSpec = info.portSpec();
+                final PortObjectSpec portSpec = info.portSpec();
                 if (portSpec instanceof DataTableSpec) {
                     return buildColumnList((DataTableSpec) portSpec);
                 }
@@ -123,7 +125,7 @@ final class SparkExpressionWebNodeDialog implements NodeDialog {
         } catch (final Exception e) {
             // Return empty list on error
         }
-        return List.of();
+        return Collections.emptyList();
     }
 
     private static List<Map<String, String>> buildColumnList(final DataTableSpec spec) {
@@ -145,13 +147,13 @@ final class SparkExpressionWebNodeDialog implements NodeDialog {
     @SuppressWarnings("deprecation")
     private static Object getFlowVariableInfo(final WorkflowControl workflowControl) {
         try {
-            final var stack = workflowControl.getFlowObjectStack();
+            final FlowObjectStack stack = workflowControl.getFlowObjectStack();
             if (stack == null) {
-                return List.of();
+                return Collections.emptyList();
             }
-            final var variables = stack.getAllAvailableFlowVariables();
+            final Map<String, FlowVariable> variables = stack.getAllAvailableFlowVariables();
             final List<Map<String, String>> result = new ArrayList<>();
-            for (final var entry : variables.entrySet()) {
+            for (final Map.Entry<String, FlowVariable> entry : variables.entrySet()) {
                 final FlowVariable fv = entry.getValue();
                 final Map<String, String> varInfo = new LinkedHashMap<>();
                 varInfo.put("name", fv.getName());
@@ -160,7 +162,7 @@ final class SparkExpressionWebNodeDialog implements NodeDialog {
             }
             return result;
         } catch (final Exception e) {
-            return List.of();
+            return Collections.emptyList();
         }
     }
 
@@ -473,10 +475,17 @@ final class SparkExpressionWebNodeDialog implements NodeDialog {
     @SafeVarargs
     private static Map<String, Object> buildCategory(final String name,
             final Map<String, Object>... functions) {
-        return Map.of("name", name, "functions", List.of(functions));
+        final Map<String, Object> category = new HashMap<>();
+        category.put("name", name);
+        category.put("functions", Arrays.asList(functions));
+        return category;
     }
 
     private static Map<String, Object> fn(final String label, final String template, final String description) {
-        return Map.of("label", label, "template", template, "description", description);
+        final Map<String, Object> func = new HashMap<>();
+        func.put("label", label);
+        func.put("template", template);
+        func.put("description", description);
+        return func;
     }
 }

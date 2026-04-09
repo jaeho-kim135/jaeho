@@ -50,11 +50,14 @@ public class StringToNumberJob implements SparkJob<SparkStringToNumberJobInput, 
         final boolean genericParse = input.isGenericParse();
         final boolean failOnError = input.isFailOnError();
 
-        final org.apache.spark.sql.types.DataType sparkType = switch (parseType) {
-            case "INTEGER" -> DataTypes.IntegerType;
-            case "LONG" -> DataTypes.LongType;
-            default -> DataTypes.DoubleType;
-        };
+        final org.apache.spark.sql.types.DataType sparkType;
+        if ("INTEGER".equals(parseType)) {
+            sparkType = DataTypes.IntegerType;
+        } else if ("LONG".equals(parseType)) {
+            sparkType = DataTypes.LongType;
+        } else {
+            sparkType = DataTypes.DoubleType;
+        }
 
         final Set<String> targetSet = new HashSet<>(Arrays.asList(columns));
         final String[] allColumns = inputFrame.columns();

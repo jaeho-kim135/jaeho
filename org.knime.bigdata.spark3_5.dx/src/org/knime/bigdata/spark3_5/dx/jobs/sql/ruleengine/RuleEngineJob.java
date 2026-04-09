@@ -303,7 +303,7 @@ public class RuleEngineJob implements SparkJob<SparkRuleEngineJobInput, SparkRul
      */
     private String replaceColumnRefs(final String input) {
         final Matcher m = COL_REF_PATTERN.matcher(input);
-        final StringBuilder sb = new StringBuilder();
+        final StringBuffer sb = new StringBuffer();
         while (m.find()) {
             final String colName = m.group(1).replace("`", "``");
             m.appendReplacement(sb, Matcher.quoteReplacement("`" + colName + "`"));

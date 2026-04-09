@@ -1,7 +1,9 @@
 package org.knime.bigdata.spark.dx.node.preproc.stringtodatetime;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.port.data.SparkDataPortObjectSpec;
 import org.knime.core.data.DataColumnSpec;
@@ -10,6 +12,7 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.bigdata.spark.dx.node.LocaleChoicesProvider;
 import org.knime.node.parameters.NodeParameters;
 import org.knime.node.parameters.NodeParametersInput;
 import org.knime.node.parameters.Widget;
@@ -18,6 +21,7 @@ import org.knime.node.parameters.layout.Section;
 import org.knime.node.parameters.persistence.Persistor;
 import org.knime.node.parameters.persistence.NodeParametersPersistor;
 import org.knime.node.parameters.persistence.legacy.LegacyColumnFilterPersistor;
+import org.knime.node.parameters.widget.choices.ChoicesProvider;
 import org.knime.node.parameters.widget.choices.ColumnChoicesProvider;
 import org.knime.node.parameters.widget.choices.ValueSwitchWidget;
 import org.knime.node.parameters.widget.choices.filter.ColumnFilter;
@@ -74,8 +78,8 @@ class SparkStringToDateTimeNodeParameters implements NodeParameters {
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
                 .map(tableSpec -> tableSpec.stream()
                     .filter(colSpec -> colSpec.getType().isCompatible(StringValue.class))
-                    .toList())
-                .orElse(List.of());
+                    .collect(Collectors.toList()))
+                .orElse(Collections.<DataColumnSpec>emptyList());
         }
     }
 
@@ -218,28 +222,26 @@ class SparkStringToDateTimeNodeParameters implements NodeParameters {
 
     @Layout(DialogSections.TypeAndFormatSection.class)
     @Widget(title = "Date format",
-        description = """
-            A format string that defines the expected format of the input strings. \
-            Common examples: "yyyy-MM-dd" for dates, "HH:mm:ss" for times, \
-            "yyyy-MM-dd HH:mm:ss" for date&amp;time. \
-            Uses Java DateTimeFormatter pattern syntax.""")
+        description = "A format string that defines the expected format of the input strings. "
+            + "Common examples: \"yyyy-MM-dd\" for dates, \"HH:mm:ss\" for times, "
+            + "\"yyyy-MM-dd HH:mm:ss\" for date&amp;time. "
+            + "Uses Java DateTimeFormatter pattern syntax.")
     @Persistor(FormatPersistor.class)
     String m_format = "yyyy-MM-dd";
 
     @Layout(DialogSections.TypeAndFormatSection.class)
     @Widget(title = "Locale",
-        description = """
-            A locale language tag (e.g., "en-US", "de-DE", "ko-KR") that determines \
-            the language for month and weekday names. \
-            Note: Locale support in Spark is limited to Spark's built-in date parsing.""")
+        description = "A locale language tag (e.g., \"en-US\", \"de-DE\", \"ko-KR\") that determines "
+            + "the language for month and weekday names. "
+            + "Note: Locale support in Spark is limited to Spark's built-in date parsing.")
+    @ChoicesProvider(LocaleChoicesProvider.class)
     @Persistor(LocalePersistor.class)
     String m_locale = Locale.getDefault().toLanguageTag();
 
     @Layout(DialogSections.TypeAndFormatSection.class)
     @Widget(title = "Fail on error",
-        description = """
-            If checked, the node will abort execution when a string cannot be parsed. \
-            If unchecked, missing values will be generated for unparseable strings.""")
+        description = "If checked, the node will abort execution when a string cannot be parsed. "
+            + "If unchecked, missing values will be generated for unparseable strings.")
     @Persistor(FailOnErrorPersistor.class)
     boolean m_failOnError = false;
 

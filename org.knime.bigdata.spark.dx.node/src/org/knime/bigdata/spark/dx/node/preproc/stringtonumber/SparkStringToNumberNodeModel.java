@@ -14,6 +14,7 @@ import org.knime.bigdata.spark.core.util.SparkIDs;
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.DataType;
 import org.knime.core.data.def.DoubleCell;
 import org.knime.core.data.def.IntCell;
 import org.knime.core.data.def.LongCell;
@@ -87,11 +88,14 @@ public class SparkStringToNumberNodeModel extends SparkNodeModel {
 
     private static DataTableSpec createOutputSpec(final DataTableSpec inputSpec, final List<String> inclCols,
             final String parseType) {
-        final var targetType = switch (parseType) {
-            case "INTEGER" -> IntCell.TYPE;
-            case "LONG" -> LongCell.TYPE;
-            default -> DoubleCell.TYPE;
-        };
+        final DataType targetType;
+        if ("INTEGER".equals(parseType)) {
+            targetType = IntCell.TYPE;
+        } else if ("LONG".equals(parseType)) {
+            targetType = LongCell.TYPE;
+        } else {
+            targetType = DoubleCell.TYPE;
+        }
 
         final List<DataColumnSpec> outputCols = new ArrayList<>();
         for (int i = 0; i < inputSpec.getNumColumns(); i++) {

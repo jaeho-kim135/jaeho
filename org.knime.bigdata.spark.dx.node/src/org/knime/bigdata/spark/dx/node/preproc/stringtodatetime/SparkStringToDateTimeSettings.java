@@ -75,7 +75,7 @@ public final class SparkStringToDateTimeSettings {
             throw new InvalidSettingsException("Missing column filter configuration.");
         }
         final String fmt = settings.getString(CFG_FORMAT, "");
-        if (fmt.isBlank()) {
+        if (fmt.trim().isEmpty()) {
             throw new InvalidSettingsException("Date&Time format must not be empty.");
         }
         settings.getString(CFG_OUTPUT_TYPE);

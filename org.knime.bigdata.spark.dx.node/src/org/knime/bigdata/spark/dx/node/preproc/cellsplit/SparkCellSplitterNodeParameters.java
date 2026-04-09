@@ -1,6 +1,8 @@
 package org.knime.bigdata.spark.dx.node.preproc.cellsplit;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.port.data.SparkDataPortObjectSpec;
 import org.knime.core.data.DataColumnSpec;
@@ -11,6 +13,12 @@ import org.knime.node.parameters.layout.After;
 import org.knime.node.parameters.layout.Layout;
 import org.knime.node.parameters.layout.Section;
 import org.knime.node.parameters.persistence.Persist;
+import org.knime.node.parameters.updates.Effect;
+import org.knime.node.parameters.updates.Effect.EffectType;
+import org.knime.node.parameters.updates.EffectPredicate;
+import org.knime.node.parameters.updates.EffectPredicateProvider;
+import org.knime.node.parameters.updates.ParameterReference;
+import org.knime.node.parameters.updates.ValueReference;
 import org.knime.node.parameters.widget.number.NumberInputWidget;
 import org.knime.node.parameters.widget.text.TextInputWidget;
 import org.knime.node.parameters.widget.choices.ValueSwitchWidget;
@@ -50,6 +58,28 @@ class SparkCellSplitterNodeParameters implements NodeParameters {
         @Label("Auto-detect from data") AUTO;
     }
 
+    // ── PARAMETER REFERENCES ──────────────────────────────────────────────────
+
+    interface SizeModeRef extends ParameterReference<SizeMode> {}
+
+    // ── EFFECT PREDICATES ─────────────────────────────────────────────────────
+
+    /** Shows m_fixedSize when size mode is FIXED. */
+    static final class IsFixedPredicate implements EffectPredicateProvider {
+        @Override
+        public EffectPredicate init(final PredicateInitializer i) {
+            return i.getEnum(SizeModeRef.class).isOneOf(SizeMode.FIXED);
+        }
+    }
+
+    /** Shows m_scanLimit when size mode is AUTO. */
+    static final class IsAutoPredicate implements EffectPredicateProvider {
+        @Override
+        public EffectPredicate init(final PredicateInitializer i) {
+            return i.getEnum(SizeModeRef.class).isOneOf(SizeMode.AUTO);
+        }
+    }
+
     // ── COLUMN CHOICES PROVIDER (String columns only) ─────────────────────────
 
     static final class SparkStringColumnProvider implements ColumnChoicesProvider {
@@ -60,8 +90,8 @@ class SparkCellSplitterNodeParameters implements NodeParameters {
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
                 .map(tableSpec -> tableSpec.stream()
                     .filter(cs -> cs.getType().isCompatible(org.knime.core.data.StringValue.class))
-                    .toList())
-                .orElse(List.of());
+                    .collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
         }
     }
 
@@ -98,12 +128,14 @@ class SparkCellSplitterNodeParameters implements NodeParameters {
             + "'Fixed' uses a specified count. 'Auto-detect' scans the data to find the maximum number of parts.")
     @ValueSwitchWidget
     @Persist(configKey = SparkCellSplitterSettings.CFG_SIZE_MODE)
+    @ValueReference(SizeModeRef.class)
     SizeMode m_sizeMode = SizeMode.FIXED;
 
     @Layout(DialogSections.OutputColumnsSection.class)
     @Widget(title = "Number of output columns",
         description = "The fixed number of output columns to create from the split.")
     @NumberInputWidget
+    @Effect(predicate = IsFixedPredicate.class, type = EffectType.SHOW)
     @Persist(configKey = SparkCellSplitterSettings.CFG_FIXED_SIZE)
     int m_fixedSize = 3;
 
@@ -112,8 +144,9 @@ class SparkCellSplitterNodeParameters implements NodeParameters {
         description = "Maximum number of rows to scan when auto-detecting the number of output columns. "
             + "A higher value gives more accurate results but takes longer.")
     @NumberInputWidget
+    @Effect(predicate = IsAutoPredicate.class, type = EffectType.SHOW)
     @Persist(configKey = SparkCellSplitterSettings.CFG_SCAN_LIMIT)
-    int m_scanLimit = 50000;
+    int m_scanLimit = 10000;
 
     // ── Output Options ──────────────────────────────────────────────────────
 

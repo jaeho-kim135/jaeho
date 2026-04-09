@@ -12,6 +12,7 @@ import org.knime.bigdata.spark3_4.api.Spark_3_4_CompatibilityChecker;
  */
 public class DxSpark34JarProvider extends DefaultSparkJarProvider {
 
+    /** Predicate matching the spark3_4.dx plugin's classpath entries. */
     private static final java.util.function.Predicate<String> DX_SPARK34_PLUGIN_PREDICATE =
         Pattern.compile("org\\.knime\\.bigdata\\.spark3_4\\.dx").asPredicate();
 

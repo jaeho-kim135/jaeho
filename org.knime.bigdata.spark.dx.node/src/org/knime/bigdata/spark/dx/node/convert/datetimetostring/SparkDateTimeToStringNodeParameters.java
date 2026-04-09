@@ -1,6 +1,8 @@
 package org.knime.bigdata.spark.dx.node.convert.datetimetostring;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.port.data.SparkDataPortObjectSpec;
 import org.knime.core.data.DataColumnSpec;
@@ -23,7 +25,9 @@ import org.knime.node.parameters.updates.EffectPredicate;
 import org.knime.node.parameters.updates.EffectPredicateProvider;
 import org.knime.node.parameters.updates.ParameterReference;
 import org.knime.node.parameters.updates.ValueReference;
+import org.knime.bigdata.spark.dx.node.LocaleChoicesProvider;
 import org.knime.node.parameters.widget.text.TextInputWidget;
+import org.knime.node.parameters.widget.choices.ChoicesProvider;
 import org.knime.node.parameters.widget.choices.ValueSwitchWidget;
 import org.knime.node.parameters.widget.choices.ColumnChoicesProvider;
 import org.knime.node.parameters.widget.choices.Label;
@@ -88,8 +92,8 @@ class SparkDateTimeToStringNodeParameters implements NodeParameters {
             return context.getInPortSpec(0)
                 .filter(spec -> spec instanceof SparkDataPortObjectSpec)
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
-                .map(tableSpec -> tableSpec.stream().toList())
-                .orElse(List.of());
+                .map(tableSpec -> tableSpec.stream().collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
         }
     }
 
@@ -167,9 +171,8 @@ class SparkDateTimeToStringNodeParameters implements NodeParameters {
 
     @Layout(DialogSections.FormatSection.class)
     @Widget(title = "Locale",
-        description = "Locale for locale-sensitive formatting such as month/day names "
-            + "(e.g., en, ko, ja). Leave empty for default locale.")
-    @TextInputWidget(placeholder = "en")
+        description = "Locale for locale-sensitive formatting such as month/day names.")
+    @ChoicesProvider(LocaleChoicesProvider.class)
     @Persist(configKey = SparkDateTimeToStringSettings.CFG_LOCALE)
     String m_locale = "en";
 

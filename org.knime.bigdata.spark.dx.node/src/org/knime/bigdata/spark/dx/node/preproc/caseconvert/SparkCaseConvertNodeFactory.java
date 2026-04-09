@@ -17,16 +17,15 @@ public final class SparkCaseConvertNodeFactory
     implements SparkNodeFactory<SparkCaseConvertNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Case Converter (Hyim)")
+        .name("Spark Case Converter (HYIM)")
         .icon("icon.png")
         .shortDescription("Converts the case of string columns in a Spark DataFrame.")
-        .fullDescription("""
-            <p>Converts the case of selected string columns in a Spark DataFrame.
-            Supports UPPERCASE, lowercase, and Title Case conversion using
-            Spark SQL functions UPPER(), LOWER(), and INITCAP().</p>
-            <p>Only String type columns are available for selection.
-            The conversion is always applied in-place (replacing the original column values).</p>
-            """)
+        .fullDescription(
+            "<p>Converts the case of selected string columns in a Spark DataFrame.\n"
+            + "Supports UPPERCASE, lowercase, and Title Case conversion using\n"
+            + "Spark SQL functions UPPER(), LOWER(), and INITCAP().</p>\n"
+            + "<p>Only String type columns are available for selection.\n"
+            + "The conversion is always applied in-place (replacing the original column values).</p>")
         .modelSettingsClass(SparkCaseConvertNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame with string columns to convert.")

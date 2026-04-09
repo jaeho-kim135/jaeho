@@ -1,6 +1,5 @@
 package org.knime.bigdata.spark3_5.dx.jobs.preproc.topk;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -109,15 +108,14 @@ public class TopKRowFilterJob implements SparkJob<SparkTopKRowFilterJobInput, Sp
      * Builds the order columns array from the job input, applying null handling.
      */
     private Column[] buildOrderColumns(final SparkTopKRowFilterJobInput input, final boolean missingsToEnd) {
-        final List<Column> cols = new ArrayList<>();
-        cols.add(buildOrderColumn(input.getSortColumn1(), input.getSortOrder1(), missingsToEnd));
-        if (input.useSecondSort()) {
-            final String sc2 = input.getSortColumn2();
-            if (sc2 != null && !sc2.isEmpty()) {
-                cols.add(buildOrderColumn(sc2, input.getSortOrder2(), missingsToEnd));
-            }
+        final String[] sortCols = input.getSortColumns();
+        final String[] sortOrders = input.getSortOrders();
+        final Column[] cols = new Column[sortCols.length];
+        for (int i = 0; i < sortCols.length; i++) {
+            final String order = (i < sortOrders.length) ? sortOrders[i] : "DESCENDING";
+            cols[i] = buildOrderColumn(sortCols[i], order, missingsToEnd);
         }
-        return cols.toArray(new Column[0]);
+        return cols;
     }
 
     /**
@@ -136,14 +134,6 @@ public class TopKRowFilterJob implements SparkJob<SparkTopKRowFilterJobInput, Sp
      * Gets the list of sort column names from the job input.
      */
     private List<String> getSortColumnNames(final SparkTopKRowFilterJobInput input) {
-        final List<String> names = new ArrayList<>();
-        names.add(input.getSortColumn1());
-        if (input.useSecondSort()) {
-            final String sc2 = input.getSortColumn2();
-            if (sc2 != null && !sc2.isEmpty()) {
-                names.add(sc2);
-            }
-        }
-        return names;
+        return Arrays.asList(input.getSortColumns());
     }
 }

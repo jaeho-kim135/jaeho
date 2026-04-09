@@ -48,21 +48,37 @@ public class CellSplitterJob implements SparkJob<SparkCellSplitterJobInput, Spar
         final String delimiter = input.isUseRegex() ? input.getDelimiter() : Pattern.quote(input.getDelimiter());
 
         // 1. Determine number of output columns
+        final int MAX_OUTPUT_COLS = 1000;
         final int numCols;
         if (input.isAutoMode()) {
             final int scanLimit = input.getScanLimit();
-            final Dataset<Row> scanDF = inputDF.limit(scanLimit);
-            final Row maxRow = scanDF
-                .select(size(split(col("`" + srcCol + "`"), delimiter)).as("sz"))
-                .agg(max("sz"))
-                .first();
+            // Collect sample rows to driver to avoid shuffle-requiring aggregation on Livy
+            final java.util.List<Row> sample = inputDF
+                .select(col("`" + srcCol + "`"))
+                .limit(scanLimit)
+                .collectAsList();
 
-            if (maxRow == null || maxRow.isNullAt(0)) {
-                numCols = 1;
-            } else {
-                // agg(max(size(...))) may return IntegerType or LongType depending on Spark version
-                numCols = ((Number) maxRow.get(0)).intValue();
+            int maxParts = 1;
+            final Pattern splitPat = Pattern.compile(delimiter);
+            for (final Row row : sample) {
+                if (!row.isNullAt(0)) {
+                    final String val = row.getString(0);
+                    if (val != null) {
+                        final int parts = splitPat.split(val, -1).length;
+                        if (parts > maxParts) {
+                            maxParts = parts;
+                        }
+                    }
+                }
             }
+
+            if (maxParts > MAX_OUTPUT_COLS) {
+                throw new KNIMESparkException(
+                    "Auto-detect found " + maxParts + " split parts (max allowed: " + MAX_OUTPUT_COLS + "). "
+                    + "Please use Fixed size mode to specify the number of output columns, "
+                    + "or check your delimiter setting.");
+            }
+            numCols = maxParts;
         } else {
             numCols = input.getFixedSize();
         }

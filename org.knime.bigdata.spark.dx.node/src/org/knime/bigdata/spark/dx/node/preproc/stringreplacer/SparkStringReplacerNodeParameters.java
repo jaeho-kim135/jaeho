@@ -1,6 +1,8 @@
 package org.knime.bigdata.spark.dx.node.preproc.stringreplacer;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.port.data.SparkDataPortObjectSpec;
 import org.knime.core.data.DataColumnSpec;
@@ -12,6 +14,12 @@ import org.knime.node.parameters.layout.After;
 import org.knime.node.parameters.layout.Layout;
 import org.knime.node.parameters.layout.Section;
 import org.knime.node.parameters.persistence.Persist;
+import org.knime.node.parameters.updates.Effect;
+import org.knime.node.parameters.updates.Effect.EffectType;
+import org.knime.node.parameters.updates.EffectPredicate;
+import org.knime.node.parameters.updates.EffectPredicateProvider;
+import org.knime.node.parameters.updates.ParameterReference;
+import org.knime.node.parameters.updates.ValueReference;
 import org.knime.node.parameters.widget.choices.ValueSwitchWidget;
 import org.knime.node.parameters.widget.text.TextInputWidget;
 import org.knime.node.parameters.widget.choices.ChoicesProvider;
@@ -56,6 +64,29 @@ class SparkStringReplacerNodeParameters implements NodeParameters {
         @Label("Append new column") APPEND;
     }
 
+    // ── PARAMETER REFERENCES ──────────────────────────────────────────────────
+
+    interface PatternTypeRef extends ParameterReference<PatternType> {}
+    interface AppendOrReplaceRef extends ParameterReference<AppendOrReplace> {}
+
+    // ── EFFECT PREDICATES ─────────────────────────────────────────────────────
+
+    /** Shows m_enableEscaping only when pattern type is WILDCARD. */
+    static final class IsWildcardPredicate implements EffectPredicateProvider {
+        @Override
+        public EffectPredicate init(final PredicateInitializer i) {
+            return i.getEnum(PatternTypeRef.class).isOneOf(PatternType.WILDCARD);
+        }
+    }
+
+    /** Shows m_newColName only when output mode is APPEND. */
+    static final class IsAppendPredicate implements EffectPredicateProvider {
+        @Override
+        public EffectPredicate init(final PredicateInitializer i) {
+            return i.getEnum(AppendOrReplaceRef.class).isOneOf(AppendOrReplace.APPEND);
+        }
+    }
+
     // ── COLUMN CHOICES PROVIDER ───────────────────────────────────────────────
 
     /**
@@ -69,8 +100,8 @@ class SparkStringReplacerNodeParameters implements NodeParameters {
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
                 .map(tableSpec -> tableSpec.stream()
                     .filter(cs -> cs.getType().isCompatible(StringValue.class))
-                    .toList())
-                .orElse(List.of());
+                    .collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
         }
     }
 
@@ -93,6 +124,7 @@ class SparkStringReplacerNodeParameters implements NodeParameters {
             + "Regular Expression uses Java regex syntax.")
     @ValueSwitchWidget
     @Persist(configKey = SparkStringReplacerSettings.CFG_PATTERN_TYPE)
+    @ValueReference(PatternTypeRef.class)
     PatternType m_patternType = PatternType.LITERAL;
 
     @Layout(DialogSections.FindReplaceSection.class)
@@ -123,6 +155,7 @@ class SparkStringReplacerNodeParameters implements NodeParameters {
     @Widget(title = "Enable escaping",
         description = "If checked, \\? matches a literal question mark and \\\\ matches a literal backslash "
             + "in wildcard patterns. Only available in Wildcard mode.")
+    @Effect(predicate = IsWildcardPredicate.class, type = EffectType.SHOW)
     @Persist(configKey = SparkStringReplacerSettings.CFG_ENABLE_ESCAPING)
     boolean m_enableEscaping = false;
 
@@ -142,12 +175,14 @@ class SparkStringReplacerNodeParameters implements NodeParameters {
             + "Append new column: keeps the original and adds a new column with the result.")
     @ValueSwitchWidget
     @Persist(configKey = SparkStringReplacerSettings.CFG_APPEND_OR_REPLACE)
+    @ValueReference(AppendOrReplaceRef.class)
     AppendOrReplace m_appendOrReplace = AppendOrReplace.REPLACE;
 
     @Layout(DialogSections.OutputSection.class)
     @Widget(title = "New column name",
         description = "Name of the new column to append with the replacement result.")
     @TextInputWidget(placeholder = "Replaced")
+    @Effect(predicate = IsAppendPredicate.class, type = EffectType.SHOW)
     @Persist(configKey = SparkStringReplacerSettings.CFG_NEW_COL_NAME)
     String m_newColName = "Replaced";
 

@@ -1,6 +1,8 @@
 package org.knime.bigdata.spark.dx.node.preproc.rowsplitter;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.port.data.SparkDataPortObjectSpec;
 import org.knime.core.data.DataColumnSpec;
@@ -15,6 +17,12 @@ import org.knime.node.parameters.layout.Layout;
 import org.knime.node.parameters.layout.Section;
 import org.knime.node.parameters.persistence.NodeParametersPersistor;
 import org.knime.node.parameters.persistence.Persistor;
+import org.knime.node.parameters.updates.Effect;
+import org.knime.node.parameters.updates.Effect.EffectType;
+import org.knime.node.parameters.updates.EffectPredicate;
+import org.knime.node.parameters.updates.EffectPredicateProvider;
+import org.knime.node.parameters.updates.ParameterReference;
+import org.knime.node.parameters.updates.ValueReference;
 import org.knime.node.parameters.widget.text.TextInputWidget;
 import org.knime.node.parameters.widget.choices.ChoicesProvider;
 import org.knime.node.parameters.widget.choices.ColumnChoicesProvider;
@@ -69,8 +77,34 @@ class SparkRowSplitterNodeParameters implements NodeParameters {
             return context.getInPortSpec(0)
                 .filter(spec -> spec instanceof SparkDataPortObjectSpec)
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
-                .map(tableSpec -> tableSpec.stream().toList())
-                .orElse(List.of());
+                .map(tableSpec -> tableSpec.stream().collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
+        }
+    }
+
+    // ── PARAMETER REFERENCES (for FilterPredicate @Effect) ─────────────────────
+
+    interface OperatorRef extends ParameterReference<FilterOperator> {}
+
+    // ── EFFECT PREDICATES ─────────────────────────────────────────────────────
+
+    /** Shows m_value when the operator requires a comparison value. */
+    static final class OperatorNeedsValuePredicate implements EffectPredicateProvider {
+        @Override
+        public EffectPredicate init(final PredicateInitializer i) {
+            return i.getEnum(OperatorRef.class).isOneOf(
+                FilterOperator.EQ, FilterOperator.NEQ,
+                FilterOperator.GT, FilterOperator.GTE,
+                FilterOperator.LT, FilterOperator.LTE,
+                FilterOperator.BETWEEN, FilterOperator.LIKE, FilterOperator.REGEX);
+        }
+    }
+
+    /** Shows m_upperValue only when operator is BETWEEN. */
+    static final class OperatorIsBetweenPredicate implements EffectPredicateProvider {
+        @Override
+        public EffectPredicate init(final PredicateInitializer i) {
+            return i.getEnum(OperatorRef.class).isOneOf(FilterOperator.BETWEEN);
         }
     }
 
@@ -86,16 +120,19 @@ class SparkRowSplitterNodeParameters implements NodeParameters {
         String m_column = "";
 
         @Widget(title = "Operator", description = "The comparison operator.")
+        @ValueReference(OperatorRef.class)
         FilterOperator m_operator = FilterOperator.EQ;
 
         @Widget(title = "Value",
             description = "The value to compare against. Not used for IS NULL, IS NOT NULL, IS TRUE, IS FALSE.")
         @TextInputWidget(placeholder = "Enter value")
+        @Effect(predicate = OperatorNeedsValuePredicate.class, type = EffectType.SHOW)
         String m_value = "";
 
         @Widget(title = "Upper Value",
             description = "The upper bound for BETWEEN operator.")
         @TextInputWidget(placeholder = "Enter upper value")
+        @Effect(predicate = OperatorIsBetweenPredicate.class, type = EffectType.SHOW)
         String m_upperValue = "";
 
         @Widget(title = "Case Sensitive",

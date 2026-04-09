@@ -1,6 +1,8 @@
 package org.knime.bigdata.spark.dx.node.preproc.duplicates;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.port.data.SparkDataPortObjectSpec;
 import org.knime.core.data.DataColumnSpec;
@@ -31,13 +33,9 @@ import org.knime.node.parameters.updates.EffectPredicate;
 import org.knime.node.parameters.updates.EffectPredicateProvider;
 import org.knime.node.parameters.updates.ParameterReference;
 import org.knime.node.parameters.updates.ValueReference;
-import org.knime.node.parameters.updates.util.BooleanReference;
 
 /**
  * Node parameters (WebUI dialog settings) for the Spark Duplicate Row Filter node.
- * Persistors bridge between the WebUI ColumnFilter representation and the
- * SettingsModelFilterString format used by SparkDuplicateRowFilterSettings, ensuring
- * backward compatibility with existing saved workflows.
  */
 @SuppressWarnings("restriction")
 class SparkDuplicateRowFilterNodeParameters implements NodeParameters {
@@ -49,32 +47,22 @@ class SparkDuplicateRowFilterNodeParameters implements NodeParameters {
             description = "Select columns used to detect duplicate rows.")
         interface DuplicateDetectionSection {}
 
-        @Section(title = "Duplicate Handling",
-            description = "Choose how to handle detected duplicates.")
-        @After(DuplicateDetectionSection.class)
-        interface DuplicateHandlingSection {}
-
         @Section(title = "Row Selection",
             description = "Select which row to keep from each duplicate group.")
-        @After(DuplicateHandlingSection.class)
+        @After(DuplicateDetectionSection.class)
         interface RowSelectionSection {}
 
         @Section(title = "Order Column",
             description = "Column used to determine row ordering within duplicate groups.")
         @After(RowSelectionSection.class)
         interface OrderColumnSection {}
-
-        @Section(title = "Output Columns",
-            description = "Configure additional output columns for annotate mode.")
-        @After(OrderColumnSection.class)
-        interface OutputColumnsSection {}
     }
 
     // ── ENUMS ─────────────────────────────────────────────────────────────────
 
+    /** Kept for backward compatibility with old workflows that may have KEEP stored. */
     enum DuplicateHandling {
-        @Label("Remove duplicates") REMOVE,
-        @Label("Keep duplicates (annotate)") KEEP;
+        REMOVE, KEEP;
     }
 
     enum RowSelection {
@@ -92,39 +80,25 @@ class SparkDuplicateRowFilterNodeParameters implements NodeParameters {
 
     // ── PARAMETER REFERENCES ─────────────────────────────────────────────────
 
-    interface DupHandlingRef extends ParameterReference<DuplicateHandling> {}
     interface RowSelRef extends ParameterReference<RowSelection> {}
-    interface AddStatusRef extends BooleanReference {}
 
     // ── EFFECT PREDICATES ─────────────────────────────────────────────────────
 
-    static final class IsRemovePredicate implements EffectPredicateProvider {
+    /** Shows the order column when row selection requires ordering (FIRST/LAST/MIN/MAX). */
+    static final class NeedsOrderColumnPredicate implements EffectPredicateProvider {
         @Override
         public EffectPredicate init(final PredicateInitializer i) {
-            return i.getEnum(DupHandlingRef.class).isOneOf(DuplicateHandling.REMOVE);
+            return i.getEnum(RowSelRef.class).isOneOf(
+                RowSelection.FIRST, RowSelection.LAST,
+                RowSelection.MINIMUM, RowSelection.MAXIMUM);
         }
     }
 
-    static final class IsKeepPredicate implements EffectPredicateProvider {
-        @Override
-        public EffectPredicate init(final PredicateInitializer i) {
-            return i.getEnum(DupHandlingRef.class).isOneOf(DuplicateHandling.KEEP);
-        }
-    }
-
+    /** Shows the order direction only for FIRST/LAST modes. */
     static final class IsFirstOrLastPredicate implements EffectPredicateProvider {
         @Override
         public EffectPredicate init(final PredicateInitializer i) {
             return i.getEnum(RowSelRef.class).isOneOf(RowSelection.FIRST, RowSelection.LAST);
-        }
-    }
-
-    static final class AddStatusPredicate implements EffectPredicateProvider {
-        @Override
-        public EffectPredicate init(final PredicateInitializer i) {
-            // Show status column name only when KEEP mode AND addStatusColumn is checked
-            return i.getEnum(DupHandlingRef.class).isOneOf(DuplicateHandling.KEEP)
-                .and(i.getBoolean(AddStatusRef.class).isTrue());
         }
     }
 
@@ -136,18 +110,13 @@ class SparkDuplicateRowFilterNodeParameters implements NodeParameters {
             return context.getInPortSpec(0)
                 .filter(spec -> spec instanceof SparkDataPortObjectSpec)
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
-                .map(tableSpec -> tableSpec.stream().toList())
-                .orElse(List.of());
+                .map(tableSpec -> tableSpec.stream().collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
         }
     }
 
     // ── CUSTOM PERSISTORS ─────────────────────────────────────────────────────
 
-    /**
-     * Bridges ColumnFilter <-> the settings under key "columns".
-     * Extends LegacyColumnFilterPersistor to use the correct config key.
-     * Overrides load() to also handle old SettingsModelFilterString format.
-     */
     static final class ColumnsPersistor extends LegacyColumnFilterPersistor {
         private static final String KEY = SparkDuplicateRowFilterSettings.CFG_COLUMNS;
 
@@ -161,32 +130,20 @@ class SparkDuplicateRowFilterNodeParameters implements NodeParameters {
         }
     }
 
-    /**
-     * Loads a ColumnFilter from settings, trying new NameFilterConfiguration format first
-     * (filter-type / included_names) and falling back to old SettingsModelFilterString format
-     * (InclList / ExclList) for backward compatibility.
-     */
     private static ColumnFilter loadColumnFilterWithFallback(final NodeSettingsRO settings,
             final String key) throws InvalidSettingsException {
         try {
             final NodeSettingsRO sub = settings.getNodeSettings(key);
             if (sub.containsKey("included_names")) {
-                // New format: NameFilterConfiguration / LegacyColumnFilterPersistor
                 return LegacyColumnFilterPersistor.load(settings, key);
             }
-            // Old format: SettingsModelFilterString (InclList / ExclList)
             final String[] incl = sub.getStringArray("InclList", new String[0]);
             return buildColumnFilterFromNames(incl, key);
         } catch (final InvalidSettingsException e) {
-            // Sub-config missing or type mismatch -- return empty filter as safe default
             return new ColumnFilter();
         }
     }
 
-    /**
-     * Constructs a ColumnFilter with the given selected column names by building
-     * a temporary NodeSettings in NameFilterConfiguration format.
-     */
     private static ColumnFilter buildColumnFilterFromNames(final String[] included, final String key)
             throws InvalidSettingsException {
         final NodeSettings temp = new NodeSettings("_temp");
@@ -209,35 +166,30 @@ class SparkDuplicateRowFilterNodeParameters implements NodeParameters {
     @Persistor(ColumnsPersistor.class)
     ColumnFilter m_columns = new ColumnFilter();
 
-    // ── Duplicate Handling ───────────────────────────────────────────────────
-    @Layout(DialogSections.DuplicateHandlingSection.class)
-    @Widget(title = "Duplicate Handling",
-        description = "Choose whether to remove duplicate rows or keep all rows with annotations.")
-    @ValueSwitchWidget
-    @ValueReference(DupHandlingRef.class)
+    // Hidden: persisted for backward compat but not shown in UI (always REMOVE)
     @Persist(configKey = SparkDuplicateRowFilterSettings.CFG_DUPLICATE_HANDLING)
     DuplicateHandling m_duplicateHandling = DuplicateHandling.REMOVE;
 
-    // ── Row Selection (REMOVE mode only) ─────────────────────────────────────
+    // ── Row Selection ────────────────────────────────────────────────────────
     @Layout(DialogSections.RowSelectionSection.class)
     @Widget(title = "Row Selection",
         description = "Select which row to keep from each group of duplicates.")
     @RadioButtonsWidget
     @ValueReference(RowSelRef.class)
-    @Effect(predicate = IsRemovePredicate.class, type = EffectType.SHOW)
     @Persist(configKey = SparkDuplicateRowFilterSettings.CFG_ROW_SELECTION)
     RowSelection m_rowSelection = RowSelection.FIRST;
 
-    // ── Order Column (always visible) ────────────────────────────────────────
+    // ── Order Column (visible for FIRST/LAST/MIN/MAX only) ───────────────────
     @Layout(DialogSections.OrderColumnSection.class)
     @Widget(title = "Order Column",
         description = "Column used to determine row ordering within each duplicate group. "
-            + "Required for all modes except 'Remove all duplicates'.")
+            + "Required for first/last/minimum/maximum row selection.")
     @ChoicesProvider(SparkAllColumnChoicesProvider.class)
+    @Effect(predicate = NeedsOrderColumnPredicate.class, type = EffectType.SHOW)
     @Persist(configKey = SparkDuplicateRowFilterSettings.CFG_ORDER_COLUMN)
     String m_orderColumn = "";
 
-    // ── Order Direction (FIRST/LAST only) ────────────────────────────────────
+    // ── Order Direction (visible for FIRST/LAST only) ────────────────────────
     @Layout(DialogSections.OrderColumnSection.class)
     @Widget(title = "Order Direction",
         description = "Sort direction for the order column when selecting first or last occurrence.")
@@ -246,32 +198,12 @@ class SparkDuplicateRowFilterNodeParameters implements NodeParameters {
     @Persist(configKey = SparkDuplicateRowFilterSettings.CFG_ORDER_DIRECTION)
     OrderDirection m_orderDirection = OrderDirection.ASC;
 
-    // ── Add Status Column (KEEP mode only) ───────────────────────────────────
-    @Layout(DialogSections.OutputColumnsSection.class)
-    @Widget(title = "Add status column",
-        description = "Add a column indicating whether each row is 'unique', 'chosen', or 'duplicate'.")
-    @ValueReference(AddStatusRef.class)
-    @Effect(predicate = IsKeepPredicate.class, type = EffectType.SHOW)
-    @Persist(configKey = SparkDuplicateRowFilterSettings.CFG_ADD_STATUS_COLUMN)
-    boolean m_addStatusColumn = false;
-
-    // ── Status Column Name (when addStatusColumn is true) ────────────────────
-    @Layout(DialogSections.OutputColumnsSection.class)
-    @Widget(title = "Status column name",
-        description = "Name for the status column that will be appended to the output.")
-    @Effect(predicate = AddStatusPredicate.class, type = EffectType.SHOW)
-    @Persist(configKey = SparkDuplicateRowFilterSettings.CFG_STATUS_COLUMN_NAME)
-    String m_statusColumnName = "Duplicate Status";
-
     // ── CONSTRUCTORS ──────────────────────────────────────────────────────────
 
     SparkDuplicateRowFilterNodeParameters() {}
 
     // ── HELPERS ───────────────────────────────────────────────────────────────
 
-    /**
-     * Extracts the manually selected column names from a ColumnFilter.
-     */
     @SuppressWarnings("restriction")
     static String[] getManuallySelected(final ColumnFilter filter) {
         if (filter == null) {

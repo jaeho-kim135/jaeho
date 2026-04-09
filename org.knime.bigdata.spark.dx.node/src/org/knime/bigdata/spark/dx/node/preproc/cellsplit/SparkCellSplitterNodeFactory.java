@@ -17,19 +17,17 @@ public final class SparkCellSplitterNodeFactory
     implements SparkNodeFactory<SparkCellSplitterNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Cell Splitter (Hyim)")
+        .name("Spark Cell Splitter (HYIM)")
         .icon("icon.png")
         .shortDescription("Splits a string column into multiple columns by a delimiter.")
-        .fullDescription("""
-            <p>Splits the content of a string column into multiple new columns using a delimiter.
-            The delimiter can be a literal string or a regular expression.</p>
-            <p>The number of output columns can be set to a fixed value or auto-detected from
-            the data by scanning a configurable number of rows to determine the maximum number
-            of split parts.</p>
-            <p>Options include trimming whitespace from split results, replacing null values
-            with empty strings, removing the original input column, and specifying a custom
-            output column name prefix.</p>
-            """)
+        .fullDescription("<p>Splits the content of a string column into multiple new columns using a delimiter. "
+            + "The delimiter can be a literal string or a regular expression.</p>"
+            + "<p>The number of output columns can be set to a fixed value or auto-detected from "
+            + "the data by scanning a configurable number of rows to determine the maximum number "
+            + "of split parts.</p>"
+            + "<p>Options include trimming whitespace from split results, replacing null values "
+            + "with empty strings, removing the original input column, and specifying a custom "
+            + "output column name prefix.</p>")
         .modelSettingsClass(SparkCellSplitterNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame containing the string column to split.")

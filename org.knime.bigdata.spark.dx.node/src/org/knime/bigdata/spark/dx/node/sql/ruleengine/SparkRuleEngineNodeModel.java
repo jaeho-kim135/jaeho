@@ -1,5 +1,6 @@
 package org.knime.bigdata.spark.dx.node.sql.ruleengine;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -22,6 +23,7 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
+import org.knime.core.node.workflow.FlowObjectStack;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.core.node.workflow.NativeNodeContainer;
 import org.knime.core.node.workflow.NodeContainer;
@@ -36,8 +38,11 @@ public class SparkRuleEngineNodeModel extends SparkNodeModel {
     /** The unique Spark job id. */
     public static final String JOB_ID = SparkRuleEngineNodeModel.class.getCanonicalName();
 
-    /** Pattern for flow variable placeholders: $${SvarName}$$, $${IvarName}$$, $${DvarName}$$ */
-    private static final Pattern FLOW_VAR_PATTERN = Pattern.compile("\\$\\$\\{([SID])([^}]+)\\}\\$\\$");
+    /** Old format: $${SvarName}$$, $${IvarName}$$, $${DvarName}$$ (with type prefix + trailing $$) */
+    private static final Pattern FLOW_VAR_OLD = Pattern.compile("\\$\\$\\{([SID])([^}]+)\\}\\$\\$");
+
+    /** New format: $${varName} (auto-detect type from available flow variables) */
+    private static final Pattern FLOW_VAR_NEW = Pattern.compile("\\$\\$\\{([^}]+)\\}");
 
     private final SparkRuleEngineSettings m_settings = new SparkRuleEngineSettings();
 
@@ -172,17 +177,17 @@ public class SparkRuleEngineNodeModel extends SparkNodeModel {
     }
 
     /**
-     * Resolves {@code $${SvarName}$$}, {@code $${IvarName}$$}, {@code $${DvarName}$$}
-     * flow variable placeholders in the rules text.
+     * Resolves flow variable placeholders in the rules text.
+     * Supports both old format ($${SvarName}$$) and new format ($${varName}).
      * String variables are SQL-quoted, numeric types are inserted as literals.
      */
     @SuppressWarnings("deprecation")
-    private String resolveFlowVariables(final String rulesText) throws InvalidSettingsException {
-        Map<String, FlowVariable> flowVars = Map.of();
+    private String resolveFlowVariables(String rulesText) throws InvalidSettingsException {
+        Map<String, FlowVariable> flowVars = Collections.emptyMap();
         try {
             final NodeContainer nc = NodeContext.getContext().getNodeContainer();
             if (nc instanceof NativeNodeContainer) {
-                final var stack = ((NativeNodeContainer) nc).getFlowObjectStack();
+                final FlowObjectStack stack = ((NativeNodeContainer) nc).getFlowObjectStack();
                 if (stack != null) {
                     flowVars = stack.getAvailableFlowVariables(FlowVariable.Type.values());
                 }
@@ -191,34 +196,52 @@ public class SparkRuleEngineNodeModel extends SparkNodeModel {
             // Fall through with empty map
         }
 
-        final Matcher matcher = FLOW_VAR_PATTERN.matcher(rulesText);
-        final StringBuilder sb = new StringBuilder();
-        while (matcher.find()) {
-            final String typePrefix = matcher.group(1); // S, I, or D
-            final String varName = matcher.group(2);
+        // Pass 1: Resolve old format $${SvarName}$$ (with explicit type prefix)
+        final Matcher m1 = FLOW_VAR_OLD.matcher(rulesText);
+        final StringBuilder sb1 = new StringBuilder();
+        while (m1.find()) {
+            final String typePrefix = m1.group(1);
+            final String varName = m1.group(2);
             final FlowVariable fv = flowVars.get(varName);
             if (fv != null) {
                 final String replacement;
                 switch (typePrefix) {
-                    case "I":
-                        replacement = String.valueOf(fv.getIntValue());
-                        break;
-                    case "D":
-                        replacement = String.valueOf(fv.getDoubleValue());
-                        break;
+                    case "I": replacement = String.valueOf(fv.getIntValue()); break;
+                    case "D": replacement = String.valueOf(fv.getDoubleValue()); break;
                     case "S":
-                    default:
-                        replacement = "'" + fv.getStringValue().replace("'", "''") + "'";
-                        break;
+                    default:  replacement = "'" + fv.getStringValue().replace("'", "''") + "'"; break;
                 }
-                matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+                m1.appendReplacement(sb1, Matcher.quoteReplacement(replacement));
             } else {
                 throw new InvalidSettingsException(
                     "Flow variable '" + varName + "' (type " + typePrefix + ") not found.");
             }
         }
-        matcher.appendTail(sb);
-        return sb.toString();
+        m1.appendTail(sb1);
+        rulesText = sb1.toString();
+
+        // Pass 2: Resolve new format $${varName} (auto-detect type)
+        final Matcher m2 = FLOW_VAR_NEW.matcher(rulesText);
+        final StringBuilder sb2 = new StringBuilder();
+        while (m2.find()) {
+            final String varName = m2.group(1);
+            final FlowVariable fv = flowVars.get(varName);
+            if (fv != null) {
+                final String replacement;
+                switch (fv.getType()) {
+                    case INTEGER: replacement = String.valueOf(fv.getIntValue()); break;
+                    case DOUBLE:  replacement = String.valueOf(fv.getDoubleValue()); break;
+                    case STRING:  replacement = "'" + fv.getStringValue().replace("'", "''") + "'"; break;
+                    default:      replacement = "'" + fv.getValueAsString().replace("'", "''") + "'"; break;
+                }
+                m2.appendReplacement(sb2, Matcher.quoteReplacement(replacement));
+            } else {
+                throw new InvalidSettingsException(
+                    "Flow variable '" + varName + "' not found.");
+            }
+        }
+        m2.appendTail(sb2);
+        return sb2.toString();
     }
 
     /**

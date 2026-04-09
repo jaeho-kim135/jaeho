@@ -17,39 +17,38 @@ public final class SparkStringManipNodeFactory
     implements SparkNodeFactory<SparkStringManipNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark String Manipulation (Hyim)")
+        .name("Spark String Manipulation (HYIM)")
         .icon("icon.png")
         .shortDescription("Applies a Spark SQL string expression to manipulate string columns.")
-        .fullDescription("""
-            <p>Applies a Spark SQL string expression to a Spark DataFrame column,
-            producing a new column or replacing an existing one. This node provides
-            access to Spark's built-in string functions via SQL expressions.</p>
-
-            <p><b>Available Spark SQL string functions:</b></p>
-            <ul>
-              <li><b>Case conversion:</b> initcap, lower, upper</li>
-              <li><b>Trimming:</b> trim, ltrim, rtrim</li>
-              <li><b>Length &amp; position:</b> length, reverse, substring, locate</li>
-              <li><b>Replacement:</b> replace, regexp_replace, regexp_extract</li>
-              <li><b>Padding:</b> lpad, rpad</li>
-              <li><b>Concatenation:</b> concat, concat_ws</li>
-              <li><b>Type conversion:</b> cast</li>
-            </ul>
-
-            <p><b>Usage examples:</b></p>
-            <ul>
-              <li><tt>upper(`name`)</tt> - Convert to uppercase</li>
-              <li><tt>concat(`first_name`, ' ', `last_name`)</tt> - Concatenate columns</li>
-              <li><tt>regexp_replace(`text`, '[0-9]', '')</tt> - Remove digits</li>
-              <li><tt>substring(`code`, 1, 3)</tt> - Extract substring</li>
-              <li><tt>lpad(`id`, 5, '0')</tt> - Left-pad with zeros</li>
-              <li><tt>trim(`text`)</tt> - Remove leading/trailing whitespace</li>
-            </ul>
-
-            <p>Use backtick-quoted column names (e.g. <tt>`column name`</tt>) to reference
-            input columns in the expression. Flow variable placeholders
-            (<tt>$${varName}</tt>) are resolved before execution.</p>
-            """)
+        .fullDescription(
+            "<p>Applies a Spark SQL string expression to a Spark DataFrame column,\n"
+            + "producing a new column or replacing an existing one. This node provides\n"
+            + "access to Spark's built-in string functions via SQL expressions.</p>\n"
+            + "\n"
+            + "<p><b>Available Spark SQL string functions:</b></p>\n"
+            + "<ul>\n"
+            + "  <li><b>Case conversion:</b> initcap, lower, upper</li>\n"
+            + "  <li><b>Trimming:</b> trim, ltrim, rtrim</li>\n"
+            + "  <li><b>Length &amp; position:</b> length, reverse, substring, locate</li>\n"
+            + "  <li><b>Replacement:</b> replace, regexp_replace, regexp_extract</li>\n"
+            + "  <li><b>Padding:</b> lpad, rpad</li>\n"
+            + "  <li><b>Concatenation:</b> concat, concat_ws</li>\n"
+            + "  <li><b>Type conversion:</b> cast</li>\n"
+            + "</ul>\n"
+            + "\n"
+            + "<p><b>Usage examples:</b></p>\n"
+            + "<ul>\n"
+            + "  <li><tt>upper(`name`)</tt> - Convert to uppercase</li>\n"
+            + "  <li><tt>concat(`first_name`, ' ', `last_name`)</tt> - Concatenate columns</li>\n"
+            + "  <li><tt>regexp_replace(`text`, '[0-9]', '')</tt> - Remove digits</li>\n"
+            + "  <li><tt>substring(`code`, 1, 3)</tt> - Extract substring</li>\n"
+            + "  <li><tt>lpad(`id`, 5, '0')</tt> - Left-pad with zeros</li>\n"
+            + "  <li><tt>trim(`text`)</tt> - Remove leading/trailing whitespace</li>\n"
+            + "</ul>\n"
+            + "\n"
+            + "<p>Use backtick-quoted column names (e.g. <tt>`column name`</tt>) to reference\n"
+            + "input columns in the expression. Flow variable placeholders\n"
+            + "(<tt>$${varName}</tt>) are resolved before execution.</p>")
         .modelSettingsClass(SparkStringManipNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame to apply string manipulation to.")

@@ -1,6 +1,8 @@
 package org.knime.bigdata.spark.dx.node.preproc.binner;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.port.data.SparkDataPortObjectSpec;
 import org.knime.core.data.DataColumnSpec;
@@ -138,8 +140,8 @@ class SparkNumericBinnerNodeParameters implements NodeParameters {
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
                 .map(tableSpec -> tableSpec.stream()
                     .filter(colSpec -> colSpec.getType().isCompatible(DoubleValue.class))
-                    .toList())
-                .orElse(List.of());
+                    .collect(Collectors.toList()))
+                .orElse(Collections.<DataColumnSpec>emptyList());
         }
     }
 
@@ -229,20 +231,30 @@ class SparkNumericBinnerNodeParameters implements NodeParameters {
         @Override
         public BinningMode load(final NodeSettingsRO settings) throws InvalidSettingsException {
             final String val = settings.getString(CFG_KEY, SparkNumericBinnerSettings.MODE_CUSTOM);
-            return switch (val) {
-                case SparkNumericBinnerSettings.MODE_EQUAL_WIDTH -> BinningMode.EQUAL_WIDTH;
-                case SparkNumericBinnerSettings.MODE_EQUAL_FREQUENCY -> BinningMode.EQUAL_FREQUENCY;
-                default -> BinningMode.CUSTOM;
-            };
+            if (SparkNumericBinnerSettings.MODE_EQUAL_WIDTH.equals(val)) {
+                return BinningMode.EQUAL_WIDTH;
+            } else if (SparkNumericBinnerSettings.MODE_EQUAL_FREQUENCY.equals(val)) {
+                return BinningMode.EQUAL_FREQUENCY;
+            } else {
+                return BinningMode.CUSTOM;
+            }
         }
 
         @Override
         public void save(final BinningMode obj, final NodeSettingsWO settings) {
-            final String val = switch (obj != null ? obj : BinningMode.CUSTOM) {
-                case EQUAL_WIDTH -> SparkNumericBinnerSettings.MODE_EQUAL_WIDTH;
-                case EQUAL_FREQUENCY -> SparkNumericBinnerSettings.MODE_EQUAL_FREQUENCY;
-                case CUSTOM -> SparkNumericBinnerSettings.MODE_CUSTOM;
-            };
+            final BinningMode mode = obj != null ? obj : BinningMode.CUSTOM;
+            final String val;
+            switch (mode) {
+                case EQUAL_WIDTH:
+                    val = SparkNumericBinnerSettings.MODE_EQUAL_WIDTH;
+                    break;
+                case EQUAL_FREQUENCY:
+                    val = SparkNumericBinnerSettings.MODE_EQUAL_FREQUENCY;
+                    break;
+                default:
+                    val = SparkNumericBinnerSettings.MODE_CUSTOM;
+                    break;
+            }
             settings.addString(CFG_KEY, val);
         }
 
@@ -261,20 +273,30 @@ class SparkNumericBinnerNodeParameters implements NodeParameters {
         @Override
         public BinNaming load(final NodeSettingsRO settings) throws InvalidSettingsException {
             final String val = settings.getString(CFG_KEY, SparkNumericBinnerSettings.NAMING_BORDERS);
-            return switch (val) {
-                case SparkNumericBinnerSettings.NAMING_NUMBERED -> BinNaming.NUMBERED;
-                case SparkNumericBinnerSettings.NAMING_MIDPOINTS -> BinNaming.MIDPOINTS;
-                default -> BinNaming.BORDERS;
-            };
+            if (SparkNumericBinnerSettings.NAMING_NUMBERED.equals(val)) {
+                return BinNaming.NUMBERED;
+            } else if (SparkNumericBinnerSettings.NAMING_MIDPOINTS.equals(val)) {
+                return BinNaming.MIDPOINTS;
+            } else {
+                return BinNaming.BORDERS;
+            }
         }
 
         @Override
         public void save(final BinNaming obj, final NodeSettingsWO settings) {
-            final String val = switch (obj != null ? obj : BinNaming.BORDERS) {
-                case NUMBERED -> SparkNumericBinnerSettings.NAMING_NUMBERED;
-                case MIDPOINTS -> SparkNumericBinnerSettings.NAMING_MIDPOINTS;
-                case BORDERS -> SparkNumericBinnerSettings.NAMING_BORDERS;
-            };
+            final BinNaming naming = obj != null ? obj : BinNaming.BORDERS;
+            final String val;
+            switch (naming) {
+                case NUMBERED:
+                    val = SparkNumericBinnerSettings.NAMING_NUMBERED;
+                    break;
+                case MIDPOINTS:
+                    val = SparkNumericBinnerSettings.NAMING_MIDPOINTS;
+                    break;
+                default:
+                    val = SparkNumericBinnerSettings.NAMING_BORDERS;
+                    break;
+            }
             settings.addString(CFG_KEY, val);
         }
 
@@ -293,18 +315,25 @@ class SparkNumericBinnerNodeParameters implements NodeParameters {
         @Override
         public AppendOrReplace load(final NodeSettingsRO settings) throws InvalidSettingsException {
             final String val = settings.getString(CFG_KEY, SparkNumericBinnerSettings.OUTPUT_REPLACE);
-            return switch (val) {
-                case SparkNumericBinnerSettings.OUTPUT_APPEND -> AppendOrReplace.APPEND;
-                default -> AppendOrReplace.REPLACE;
-            };
+            if (SparkNumericBinnerSettings.OUTPUT_APPEND.equals(val)) {
+                return AppendOrReplace.APPEND;
+            } else {
+                return AppendOrReplace.REPLACE;
+            }
         }
 
         @Override
         public void save(final AppendOrReplace obj, final NodeSettingsWO settings) {
-            final String val = switch (obj != null ? obj : AppendOrReplace.REPLACE) {
-                case APPEND -> SparkNumericBinnerSettings.OUTPUT_APPEND;
-                case REPLACE -> SparkNumericBinnerSettings.OUTPUT_REPLACE;
-            };
+            final AppendOrReplace mode = obj != null ? obj : AppendOrReplace.REPLACE;
+            final String val;
+            switch (mode) {
+                case APPEND:
+                    val = SparkNumericBinnerSettings.OUTPUT_APPEND;
+                    break;
+                default:
+                    val = SparkNumericBinnerSettings.OUTPUT_REPLACE;
+                    break;
+            }
             settings.addString(CFG_KEY, val);
         }
 

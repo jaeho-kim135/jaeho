@@ -1,5 +1,6 @@
 package org.knime.bigdata.spark.dx.node.sql.expression;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +25,7 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
+import org.knime.core.node.workflow.FlowObjectStack;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.core.node.workflow.NativeNodeContainer;
 import org.knime.core.node.workflow.NodeContainer;
@@ -177,11 +179,11 @@ public class SparkExpressionNodeModel extends SparkNodeModel {
      */
     @SuppressWarnings("deprecation")
     private String[] resolveFlowVariables(final List<String> expressions) {
-        Map<String, FlowVariable> flowVars = Map.of();
+        Map<String, FlowVariable> flowVars = Collections.emptyMap();
         try {
             final NodeContainer nc = NodeContext.getContext().getNodeContainer();
             if (nc instanceof NativeNodeContainer) {
-                final var stack = ((NativeNodeContainer) nc).getFlowObjectStack();
+                final FlowObjectStack stack = ((NativeNodeContainer) nc).getFlowObjectStack();
                 if (stack != null) {
                     flowVars = stack.getAvailableFlowVariables(FlowVariable.Type.values());
                 }

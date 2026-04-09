@@ -114,6 +114,11 @@ public final class SparkDuplicateRowFilterSettings {
         return "ASC".equals(m_orderDirection.getStringValue());
     }
 
+    /** Sets the order column value (for auto-configuration). */
+    public void setOrderColumn(final String col) {
+        m_orderColumn.setStringValue(col);
+    }
+
     // ── Save / Validate / Load ────────────────────────────────────────────────
 
     /**
@@ -141,8 +146,13 @@ public final class SparkDuplicateRowFilterSettings {
         m_rowSelection.validateSettings(settings);
         m_orderColumn.validateSettings(settings);
         m_orderDirection.validateSettings(settings);
-        m_addStatusColumn.validateSettings(settings);
-        m_statusColumnName.validateSettings(settings);
+        // Optional: addStatusColumn/statusColumnName may not be present in new workflows
+        if (settings.containsKey(CFG_ADD_STATUS_COLUMN)) {
+            m_addStatusColumn.validateSettings(settings);
+        }
+        if (settings.containsKey(CFG_STATUS_COLUMN_NAME)) {
+            m_statusColumnName.validateSettings(settings);
+        }
     }
 
     /**
@@ -154,8 +164,13 @@ public final class SparkDuplicateRowFilterSettings {
         m_rowSelection.loadSettingsFrom(settings);
         m_orderColumn.loadSettingsFrom(settings);
         m_orderDirection.loadSettingsFrom(settings);
-        m_addStatusColumn.loadSettingsFrom(settings);
-        m_statusColumnName.loadSettingsFrom(settings);
+        // Optional: addStatusColumn/statusColumnName may not be present in new workflows
+        if (settings.containsKey(CFG_ADD_STATUS_COLUMN)) {
+            m_addStatusColumn.loadSettingsFrom(settings);
+        }
+        if (settings.containsKey(CFG_STATUS_COLUMN_NAME)) {
+            m_statusColumnName.loadSettingsFrom(settings);
+        }
         m_nodeConfigured = settings.containsKey(CFG_CONFIGURED);
     }
 

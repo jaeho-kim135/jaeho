@@ -1,6 +1,8 @@
 package org.knime.bigdata.spark.dx.node.preproc.colcombine;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -24,6 +26,10 @@ import org.knime.node.parameters.persistence.Persist;
 import org.knime.node.parameters.persistence.Persistor;
 import org.knime.node.parameters.persistence.legacy.LegacyColumnFilterPersistor;
 import org.knime.node.parameters.updates.ButtonReference;
+import org.knime.node.parameters.updates.Effect;
+import org.knime.node.parameters.updates.Effect.EffectType;
+import org.knime.node.parameters.updates.EffectPredicate;
+import org.knime.node.parameters.updates.EffectPredicateProvider;
 import org.knime.node.parameters.updates.ParameterReference;
 import org.knime.node.parameters.updates.StateProvider;
 import org.knime.node.parameters.updates.ValueReference;
@@ -88,9 +94,28 @@ class SparkColumnCombinerNodeParameters implements NodeParameters {
 
     interface ColumnsRef extends ParameterReference<ColumnFilter> {}
     interface OutputColNameRef extends ParameterReference<String> {}
+    interface QuoteModeRef extends ParameterReference<QuoteMode> {}
 
     /** Button reference for the Check / Run Validation button. */
     interface CheckButtonRef extends ButtonReference {}
+
+    // ── EFFECT PREDICATES ─────────────────────────────────────────────────────
+
+    /** Shows m_quoteChar when quote mode is QUOTE. */
+    static final class IsQuotePredicate implements EffectPredicateProvider {
+        @Override
+        public EffectPredicate init(final PredicateInitializer i) {
+            return i.getEnum(QuoteModeRef.class).isOneOf(QuoteMode.QUOTE);
+        }
+    }
+
+    /** Shows m_replacementDelimiter when quote mode is REPLACE_IN_CELL. */
+    static final class IsReplaceInCellPredicate implements EffectPredicateProvider {
+        @Override
+        public EffectPredicate init(final PredicateInitializer i) {
+            return i.getEnum(QuoteModeRef.class).isOneOf(QuoteMode.REPLACE_IN_CELL);
+        }
+    }
 
     // ── COLUMN CHOICES PROVIDER ───────────────────────────────────────────────
 
@@ -100,8 +125,8 @@ class SparkColumnCombinerNodeParameters implements NodeParameters {
             return context.getInPortSpec(0)
                 .filter(spec -> spec instanceof SparkDataPortObjectSpec)
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
-                .map(tableSpec -> tableSpec.stream().toList())
-                .orElse(List.of());
+                .map(tableSpec -> tableSpec.stream().collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
         }
     }
 
@@ -176,7 +201,7 @@ class SparkColumnCombinerNodeParameters implements NodeParameters {
         @Override
         public Optional<TextMessage.Message> computeState(final NodeParametersInput context) {
             Optional<PortObject> portObjOpt = context.getInPortObject(0);
-            if (portObjOpt.isEmpty()) {
+            if (!portObjOpt.isPresent()) {
                 return Optional.of(new TextMessage.Message(
                     "Execute the upstream node first to enable validation.",
                     "", TextMessage.MessageType.INFO));
@@ -246,17 +271,20 @@ class SparkColumnCombinerNodeParameters implements NodeParameters {
         description = "How to handle delimiter characters that appear within cell values.")
     @RadioButtonsWidget
     @Persist(configKey = SparkColumnCombinerSettings.CFG_QUOTE_MODE)
+    @ValueReference(QuoteModeRef.class)
     QuoteMode m_quoteMode = QuoteMode.NONE;
 
     @Layout(DialogSections.QuotingSection.class)
     @Widget(title = "Quote character",
         description = "The character used to quote cells containing the delimiter.")
+    @Effect(predicate = IsQuotePredicate.class, type = EffectType.SHOW)
     @Persist(configKey = SparkColumnCombinerSettings.CFG_QUOTE_CHAR)
     String m_quoteChar = "\"";
 
     @Layout(DialogSections.QuotingSection.class)
     @Widget(title = "Replacement for delimiter in cells",
         description = "The string used to replace delimiter occurrences within cell values.")
+    @Effect(predicate = IsReplaceInCellPredicate.class, type = EffectType.SHOW)
     @Persist(configKey = SparkColumnCombinerSettings.CFG_REPLACEMENT_DELIMITER)
     String m_replacementDelimiter = "";
 

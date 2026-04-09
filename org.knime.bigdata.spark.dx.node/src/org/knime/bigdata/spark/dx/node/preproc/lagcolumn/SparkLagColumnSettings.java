@@ -1,6 +1,7 @@
 package org.knime.bigdata.spark.dx.node.preproc.lagcolumn;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.knime.core.node.InvalidSettingsException;
@@ -31,7 +32,7 @@ public final class SparkLagColumnSettings {
     private String m_direction = DIR_LAG;
     private int m_numCopies = 1;
     private int m_lagInterval = 1;
-    private List<String> m_groupColumns = List.of();
+    private List<String> m_groupColumns = Collections.emptyList();
     private boolean m_skipIncompleteRows = false;
     private boolean m_nodeConfigured = false;
 
@@ -87,7 +88,7 @@ public final class SparkLagColumnSettings {
 
     private static List<String> loadColumnFilterIncluded(final NodeSettingsRO settings, final String key) {
         if (!settings.containsKey(key)) {
-            return List.of();
+            return Collections.emptyList();
         }
         try {
             final NodeSettingsRO sub = settings.getNodeSettings(key);
@@ -100,6 +101,6 @@ public final class SparkLagColumnSettings {
         } catch (final InvalidSettingsException e) {
             // ignore
         }
-        return List.of();
+        return Collections.emptyList();
     }
 }

@@ -51,7 +51,7 @@ public class SparkStringToDateTimeNodeModel extends SparkNodeModel {
         }
 
         final String format = m_settings.getFormat();
-        if (format == null || format.isBlank()) {
+        if (format == null || format.trim().isEmpty()) {
             throw new InvalidSettingsException("Date&Time format must not be empty.");
         }
 

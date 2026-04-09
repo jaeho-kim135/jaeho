@@ -1,24 +1,25 @@
 package org.knime.bigdata.spark.dx.node.preproc.topk;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.port.data.SparkDataPortObjectSpec;
 import org.knime.core.data.DataColumnSpec;
+import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
 import org.knime.node.parameters.NodeParameters;
 import org.knime.node.parameters.NodeParametersInput;
 import org.knime.node.parameters.Widget;
+import org.knime.node.parameters.array.ArrayWidget;
 import org.knime.node.parameters.layout.After;
 import org.knime.node.parameters.layout.Layout;
 import org.knime.node.parameters.layout.Section;
+import org.knime.node.parameters.persistence.NodeParametersPersistor;
 import org.knime.node.parameters.persistence.Persist;
 import org.knime.node.parameters.persistence.Persistor;
 import org.knime.node.parameters.persistence.legacy.LegacyColumnFilterPersistor;
-import org.knime.node.parameters.updates.Effect;
-import org.knime.node.parameters.updates.Effect.EffectType;
-import org.knime.node.parameters.updates.EffectPredicate;
-import org.knime.node.parameters.updates.EffectPredicateProvider;
-import org.knime.node.parameters.updates.ValueReference;
-import org.knime.node.parameters.updates.util.BooleanReference;
 import org.knime.node.parameters.widget.number.NumberInputWidget;
 import org.knime.node.parameters.widget.choices.ChoicesProvider;
 import org.knime.node.parameters.widget.choices.ColumnChoicesProvider;
@@ -81,24 +82,124 @@ class SparkTopKRowFilterNodeParameters implements NodeParameters {
             return context.getInPortSpec(0)
                 .filter(spec -> spec instanceof SparkDataPortObjectSpec)
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
-                .map(tableSpec -> tableSpec.stream().toList())
-                .orElse(List.of());
+                .map(tableSpec -> tableSpec.stream().collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
         }
     }
 
-    // ── EFFECT: show/hide second sort criterion ──────────────────────────────
+    // ── SORT CRITERION (ArrayWidget element) ─────────────────────────────────
 
-    interface UseSecondSortRef extends BooleanReference {}
+    /**
+     * A single sort criterion consisting of a column and a sort order.
+     * Used as the element type of the {@code @ArrayWidget} sorting criteria array.
+     */
+    static class SortCriterion implements NodeParameters {
+        @Widget(title = "Column", description = "The column to sort by.")
+        @ChoicesProvider(SparkColumnChoicesProvider.class)
+        String m_column = "";
 
-    static final class UseSecondSortPredicate implements EffectPredicateProvider {
+        @Widget(title = "Order", description = "The sort order for this column.")
+        @ValueSwitchWidget
+        SortOrder m_order = SortOrder.DESCENDING;
+
+        /** Default constructor. */
+        SortCriterion() {}
+
+        /** Constructor with values. */
+        SortCriterion(final String column, final SortOrder order) {
+            m_column = column;
+            m_order = order;
+        }
+    }
+
+    // ── CUSTOM PERSISTORS ────────────────────────────────────────────────────
+
+    /**
+     * Bridges SortCriterion[] to/from parallel String arrays (sortColumns[], sortOrders[]).
+     * Also handles backward-compatible loading from the old fixed sortColumn1/sortColumn2 format.
+     */
+    static final class SortCriteriaPersistor implements NodeParametersPersistor<SortCriterion[]> {
+
         @Override
-        public EffectPredicate init(final PredicateInitializer i) {
-            return i.getBoolean(UseSecondSortRef.class).isTrue();
+        public SortCriterion[] load(final NodeSettingsRO settings) throws InvalidSettingsException {
+            // New format: sortColumns[] + sortOrders[] arrays
+            if (settings.containsKey(SparkTopKRowFilterSettings.CFG_SORT_COLUMNS)) {
+                final String[] columns = settings.getStringArray(SparkTopKRowFilterSettings.CFG_SORT_COLUMNS);
+                final String[] orders = settings.getStringArray(
+                    SparkTopKRowFilterSettings.CFG_SORT_ORDERS, new String[0]);
+                final SortCriterion[] criteria = new SortCriterion[columns.length];
+                for (int i = 0; i < columns.length; i++) {
+                    final String orderStr = (i < orders.length) ? orders[i] : "DESCENDING";
+                    SortOrder order;
+                    try {
+                        order = SortOrder.valueOf(orderStr);
+                    } catch (final IllegalArgumentException e) {
+                        order = SortOrder.DESCENDING;
+                    }
+                    criteria[i] = new SortCriterion(columns[i], order);
+                }
+                return criteria.length > 0 ? criteria : new SortCriterion[]{new SortCriterion()};
+            }
+
+            // Backward compat: old format with sortColumn1/sortColumn2
+            if (settings.containsKey(SparkTopKRowFilterSettings.CFG_SORT_COLUMN1_LEGACY)) {
+                final String col1 = settings.getString(SparkTopKRowFilterSettings.CFG_SORT_COLUMN1_LEGACY, "");
+                final String ord1 = settings.getString(SparkTopKRowFilterSettings.CFG_SORT_ORDER1_LEGACY, "DESCENDING");
+                final boolean useSecond = settings.getBoolean(
+                    SparkTopKRowFilterSettings.CFG_USE_SECOND_SORT_LEGACY, false);
+
+                SortOrder order1;
+                try { order1 = SortOrder.valueOf(ord1); } catch (final IllegalArgumentException e) {
+                    order1 = SortOrder.DESCENDING;
+                }
+
+                if (useSecond) {
+                    final String col2 = settings.getString(
+                        SparkTopKRowFilterSettings.CFG_SORT_COLUMN2_LEGACY, "");
+                    final String ord2 = settings.getString(
+                        SparkTopKRowFilterSettings.CFG_SORT_ORDER2_LEGACY, "DESCENDING");
+                    SortOrder order2;
+                    try { order2 = SortOrder.valueOf(ord2); } catch (final IllegalArgumentException e) {
+                        order2 = SortOrder.DESCENDING;
+                    }
+                    if (!col2.isEmpty()) {
+                        return new SortCriterion[]{
+                            new SortCriterion(col1, order1),
+                            new SortCriterion(col2, order2)
+                        };
+                    }
+                }
+                return new SortCriterion[]{new SortCriterion(col1, order1)};
+            }
+
+            return new SortCriterion[]{new SortCriterion()};
+        }
+
+        @Override
+        public void save(final SortCriterion[] obj, final NodeSettingsWO settings) {
+            final SortCriterion[] criteria = (obj != null) ? obj : new SortCriterion[0];
+            final String[] columns = new String[criteria.length];
+            final String[] orders = new String[criteria.length];
+            for (int i = 0; i < criteria.length; i++) {
+                columns[i] = criteria[i].m_column != null ? criteria[i].m_column : "";
+                orders[i] = criteria[i].m_order != null ? criteria[i].m_order.name() : "DESCENDING";
+            }
+            settings.addStringArray(SparkTopKRowFilterSettings.CFG_SORT_COLUMNS, columns);
+            settings.addStringArray(SparkTopKRowFilterSettings.CFG_SORT_ORDERS, orders);
+        }
+
+        @Override
+        public String[][] getConfigPaths() {
+            return new String[][]{
+                {SparkTopKRowFilterSettings.CFG_SORT_COLUMNS},
+                {SparkTopKRowFilterSettings.CFG_SORT_ORDERS}
+            };
         }
     }
 
-    // ── PERSISTOR for group columns ─────────────────────────────────────────
-
+    /**
+     * Persistor for group columns ColumnFilter using NameFilterConfiguration format.
+     */
     static final class GroupColumnsPersistor extends LegacyColumnFilterPersistor {
         GroupColumnsPersistor() {
             super(SparkTopKRowFilterSettings.CFG_GROUP_COLUMNS);
@@ -126,41 +227,12 @@ class SparkTopKRowFilterNodeParameters implements NodeParameters {
     // ── Sort Criteria ────────────────────────────────────────────────────────
 
     @Layout(DialogSections.SortCriteriaSection.class)
-    @Widget(title = "Sort column",
-        description = "The primary column to sort by for ranking.")
-    @ChoicesProvider(SparkColumnChoicesProvider.class)
-    @Persist(configKey = "sortColumn1")
-    String m_sortColumn1 = "";
-
-    @Layout(DialogSections.SortCriteriaSection.class)
-    @Widget(title = "Sort order",
-        description = "The sort order for the primary sort column.")
-    @ValueSwitchWidget
-    @Persist(configKey = "sortOrder1")
-    SortOrder m_sortOrder1 = SortOrder.DESCENDING;
-
-    @Layout(DialogSections.SortCriteriaSection.class)
-    @Widget(title = "Use second sort criterion",
-        description = "Enable a second sort column for tie-breaking.")
-    @ValueReference(UseSecondSortRef.class)
-    @Persist(configKey = "useSecondSort")
-    boolean m_useSecondSort = false;
-
-    @Layout(DialogSections.SortCriteriaSection.class)
-    @Widget(title = "Second sort column",
-        description = "The secondary column to sort by for tie-breaking.")
-    @ChoicesProvider(SparkColumnChoicesProvider.class)
-    @Effect(predicate = UseSecondSortPredicate.class, type = EffectType.SHOW)
-    @Persist(configKey = "sortColumn2")
-    String m_sortColumn2 = "";
-
-    @Layout(DialogSections.SortCriteriaSection.class)
-    @Widget(title = "Second sort order",
-        description = "The sort order for the secondary sort column.")
-    @ValueSwitchWidget
-    @Effect(predicate = UseSecondSortPredicate.class, type = EffectType.SHOW)
-    @Persist(configKey = "sortOrder2")
-    SortOrder m_sortOrder2 = SortOrder.DESCENDING;
+    @Widget(title = "Sorting criteria",
+        description = "Define one or more sorting criteria for ranking. "
+            + "Each criterion specifies a column and its sort order.")
+    @ArrayWidget(elementTitle = "Sort Criterion", addButtonText = "Add Column", showSortButtons = true)
+    @Persistor(SortCriteriaPersistor.class)
+    SortCriterion[] m_sortingCriteria = new SortCriterion[]{new SortCriterion()};
 
     @Layout(DialogSections.SortCriteriaSection.class)
     @Widget(title = "Put missing values at end",

@@ -1,11 +1,17 @@
 package org.knime.bigdata.spark3_4.dx.jobs.preproc.duplicates;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.spark.SparkContext;
-import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.expressions.Window;
-import org.apache.spark.sql.expressions.WindowSpec;
+import org.apache.spark.sql.RowFactory;
+import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructType;
 import org.knime.bigdata.spark.core.exception.KNIMESparkException;
 import org.knime.bigdata.spark.core.job.SparkClass;
 import org.knime.bigdata.spark.core.types.intermediate.IntermediateSpec;
@@ -15,16 +21,10 @@ import org.knime.bigdata.spark3_4.api.NamedObjects;
 import org.knime.bigdata.spark3_4.api.SparkJob;
 import org.knime.bigdata.spark3_4.api.TypeConverters;
 
-import static org.apache.spark.sql.functions.col;
-import static org.apache.spark.sql.functions.count;
-import static org.apache.spark.sql.functions.lit;
-import static org.apache.spark.sql.functions.row_number;
-import static org.apache.spark.sql.functions.when;
-
 /**
- * Spark job that filters or annotates duplicate rows using Window Functions.
- * Supports REMOVE mode (FIRST/LAST/MINIMUM/MAXIMUM/REMOVE_ALL) and
- * KEEP mode (annotate with status column).
+ * Spark job that filters or annotates duplicate rows.
+ * Uses driver-side processing (collectAsList + createDataFrame) to avoid
+ * shuffle operations that hang on Livy/JDK8 environments.
  */
 @SparkClass
 public class DuplicateRowFilterJob
@@ -48,34 +48,43 @@ public class DuplicateRowFilterJob
         final boolean addStatusColumn = input.isAddStatusColumn();
         final String statusColumnName = input.getStatusColumnName();
 
-        // If no duplicate columns specified, use all columns
-        final Column[] partitionCols;
+        final String[] effectiveDupCols;
         if (dupCols == null || dupCols.length == 0) {
-            final String[] allCols = inputDF.columns();
-            partitionCols = toColumns(allCols);
+            effectiveDupCols = inputDF.columns();
         } else {
-            partitionCols = toColumns(dupCols);
+            effectiveDupCols = dupCols;
         }
 
-        Dataset<Row> result;
+        final StructType schema = inputDF.schema();
+        final List<Row> allRows = inputDF.collectAsList();
+
+        final int[] dupColIndices = new int[effectiveDupCols.length];
+        for (int i = 0; i < effectiveDupCols.length; i++) {
+            dupColIndices[i] = schema.fieldIndex(effectiveDupCols[i]);
+        }
+        final int orderColIdx = (orderCol != null && !orderCol.isEmpty())
+            ? schema.fieldIndex(orderCol) : -1;
+
+        List<Row> resultRows;
+        StructType resultSchema = schema;
 
         if ("KEEP".equals(duplicateHandling)) {
-            // KEEP mode: retain all rows, optionally annotate with status column
-            result = handleKeepMode(inputDF, partitionCols, orderCol, addStatusColumn, statusColumnName);
-
+            if (addStatusColumn) {
+                final boolean keepMin = calculateKeepMin(rowSelection, orderDirection);
+                resultRows = processKeepWithStatus(allRows, dupColIndices, orderColIdx, keepMin);
+                resultSchema = schema.add(statusColumnName, DataTypes.StringType);
+            } else {
+                resultRows = allRows;
+            }
         } else if ("REMOVE_ALL".equals(rowSelection)) {
-            // REMOVE + REMOVE_ALL: keep only unique rows (count == 1)
-            result = handleRemoveAll(inputDF, partitionCols);
-
-        } else if ("MINIMUM".equals(rowSelection) || "MAXIMUM".equals(rowSelection)) {
-            // REMOVE + MINIMUM/MAXIMUM: keep row with min/max value in order column
-            result = handleMinMax(inputDF, partitionCols, orderCol, "MINIMUM".equals(rowSelection));
-
+            resultRows = processRemoveAll(allRows, dupColIndices);
         } else {
-            // REMOVE + FIRST/LAST: keep first or last occurrence based on order column
-            result = handleFirstLast(inputDF, partitionCols, orderCol, orderDirection,
-                "LAST".equals(rowSelection));
+            final boolean keepMin = calculateKeepMin(rowSelection, orderDirection);
+            resultRows = processRemoveKeepOne(allRows, dupColIndices, orderColIdx, keepMin);
         }
+
+        final SparkSession spark = SparkSession.builder().sparkContext(sparkContext).getOrCreate();
+        final Dataset<Row> result = spark.createDataFrame(resultRows, resultSchema);
 
         final String namedOutputObject = input.getFirstNamedOutputObject();
         namedObjects.addDataFrame(namedOutputObject, result);
@@ -83,93 +92,128 @@ public class DuplicateRowFilterJob
         return new SparkDuplicateRowFilterJobOutput(namedOutputObject, outputSchema);
     }
 
-    /**
-     * KEEP mode: retain all rows. If addStatusColumn is true, add a status column
-     * with values "unique", "chosen", or "duplicate".
-     */
-    private Dataset<Row> handleKeepMode(final Dataset<Row> inputDF, final Column[] partitionCols,
-            final String orderCol, final boolean addStatusColumn, final String statusColumnName) {
-
-        if (addStatusColumn) {
-            final String safeOrderCol = orderCol.replace("`", "``");
-            final WindowSpec countWindow = Window.partitionBy(partitionCols);
-            Dataset<Row> withCount = inputDF.withColumn("__dup_count__", count("*").over(countWindow));
-            final WindowSpec rowWindow = Window.partitionBy(partitionCols)
-                .orderBy(col("`" + safeOrderCol + "`").asc_nulls_last());
-            Dataset<Row> withRn = withCount.withColumn("__rn__", row_number().over(rowWindow));
-
-            final Column statusCol = when(col("__dup_count__").equalTo(1), lit("unique"))
-                .when(col("__rn__").equalTo(1), lit("chosen"))
-                .otherwise(lit("duplicate"));
-
-            return withRn.withColumn(statusColumnName, statusCol)
-                .drop("__dup_count__", "__rn__");
-        } else {
-            // No status column needed in KEEP mode — return input as-is
-            return inputDF;
+    private List<Row> processRemoveKeepOne(final List<Row> allRows, final int[] dupColIndices,
+            final int orderColIdx, final boolean keepMin) {
+        final Map<String, Row> best = new LinkedHashMap<>();
+        for (final Row row : allRows) {
+            final String key = groupKey(row, dupColIndices);
+            final Row existing = best.get(key);
+            if (existing == null) {
+                best.put(key, row);
+            } else if (orderColIdx >= 0
+                    && shouldReplace(row.get(orderColIdx), existing.get(orderColIdx), keepMin)) {
+                best.put(key, row);
+            }
         }
+        return new ArrayList<>(best.values());
     }
 
-    /**
-     * REMOVE + REMOVE_ALL: keep only rows that have no duplicates (count == 1).
-     */
-    private Dataset<Row> handleRemoveAll(final Dataset<Row> inputDF, final Column[] partitionCols) {
-        final WindowSpec countWindow = Window.partitionBy(partitionCols);
-        return inputDF.withColumn("__cnt__", count("*").over(countWindow))
-            .filter(col("__cnt__").equalTo(1))
-            .drop("__cnt__");
-    }
-
-    /**
-     * REMOVE + MINIMUM/MAXIMUM: keep the row with the minimum or maximum value
-     * in the order column within each duplicate group.
-     */
-    private Dataset<Row> handleMinMax(final Dataset<Row> inputDF, final Column[] partitionCols,
-            final String orderCol, final boolean useMin) {
-
-        final String safeOrderCol = orderCol.replace("`", "``");
-        final Column orderExpr = useMin
-            ? col("`" + safeOrderCol + "`").asc_nulls_last()
-            : col("`" + safeOrderCol + "`").desc_nulls_last();
-
-        final WindowSpec window = Window.partitionBy(partitionCols).orderBy(orderExpr);
-        return inputDF.withColumn("__rn__", row_number().over(window))
-            .filter(col("__rn__").equalTo(1))
-            .drop("__rn__");
-    }
-
-    /**
-     * REMOVE + FIRST/LAST: keep the first or last occurrence based on
-     * the order column and direction.
-     */
-    private Dataset<Row> handleFirstLast(final Dataset<Row> inputDF, final Column[] partitionCols,
-            final String orderCol, final String orderDirection, final boolean isLast) {
-
-        final String safeOrderCol = orderCol.replace("`", "``");
-        boolean ascending = "ASC".equals(orderDirection);
-        if (isLast) {
-            ascending = !ascending; // LAST reverses the sort direction
+    private List<Row> processRemoveAll(final List<Row> allRows, final int[] dupColIndices) {
+        final Map<String, List<Row>> groups = new LinkedHashMap<>();
+        for (final Row row : allRows) {
+            final String key = groupKey(row, dupColIndices);
+            List<Row> group = groups.get(key);
+            if (group == null) {
+                group = new ArrayList<>();
+                groups.put(key, group);
+            }
+            group.add(row);
         }
-
-        final Column orderExpr = ascending
-            ? col("`" + safeOrderCol + "`").asc_nulls_last()
-            : col("`" + safeOrderCol + "`").desc_nulls_last();
-
-        final WindowSpec window = Window.partitionBy(partitionCols).orderBy(orderExpr);
-        return inputDF.withColumn("__rn__", row_number().over(window))
-            .filter(col("__rn__").equalTo(1))
-            .drop("__rn__");
-    }
-
-    /**
-     * Converts an array of column names to an array of Spark Column objects.
-     * Column names are backtick-quoted to handle special characters.
-     */
-    private Column[] toColumns(final String[] cols) {
-        final Column[] result = new Column[cols.length];
-        for (int i = 0; i < cols.length; i++) {
-            result[i] = col("`" + cols[i].replace("`", "``") + "`");
+        final List<Row> result = new ArrayList<>();
+        for (final List<Row> group : groups.values()) {
+            if (group.size() == 1) {
+                result.add(group.get(0));
+            }
         }
         return result;
+    }
+
+    private List<Row> processKeepWithStatus(final List<Row> allRows, final int[] dupColIndices,
+            final int orderColIdx, final boolean keepMin) {
+        final Map<String, List<Integer>> groups = new LinkedHashMap<>();
+        for (int i = 0; i < allRows.size(); i++) {
+            final String key = groupKey(allRows.get(i), dupColIndices);
+            List<Integer> indices = groups.get(key);
+            if (indices == null) {
+                indices = new ArrayList<>();
+                groups.put(key, indices);
+            }
+            indices.add(i);
+        }
+
+        final Map<String, Integer> chosen = new LinkedHashMap<>();
+        for (final Map.Entry<String, List<Integer>> entry : groups.entrySet()) {
+            final List<Integer> indices = entry.getValue();
+            int bestIdx = indices.get(0);
+            if (orderColIdx >= 0 && indices.size() > 1) {
+                for (final int idx : indices) {
+                    if (shouldReplace(allRows.get(idx).get(orderColIdx),
+                            allRows.get(bestIdx).get(orderColIdx), keepMin)) {
+                        bestIdx = idx;
+                    }
+                }
+            }
+            chosen.put(entry.getKey(), bestIdx);
+        }
+
+        final List<Row> result = new ArrayList<>();
+        for (int i = 0; i < allRows.size(); i++) {
+            final Row row = allRows.get(i);
+            final String key = groupKey(row, dupColIndices);
+            final List<Integer> group = groups.get(key);
+
+            final String status;
+            if (group.size() == 1) {
+                status = "unique";
+            } else if (chosen.get(key).intValue() == i) {
+                status = "chosen";
+            } else {
+                status = "duplicate";
+            }
+
+            final Object[] values = new Object[row.size() + 1];
+            for (int j = 0; j < row.size(); j++) {
+                values[j] = row.get(j);
+            }
+            values[row.size()] = status;
+            result.add(RowFactory.create(values));
+        }
+        return result;
+    }
+
+    private String groupKey(final Row row, final int[] indices) {
+        final StringBuilder sb = new StringBuilder();
+        for (final int idx : indices) {
+            if (sb.length() > 0) {
+                sb.append('\0');
+            }
+            final Object val = row.get(idx);
+            sb.append(val == null ? "\1NULL\1" : val.toString());
+        }
+        return sb.toString();
+    }
+
+    private static boolean calculateKeepMin(final String rowSelection, final String orderDirection) {
+        if ("MINIMUM".equals(rowSelection)) {
+            return true;
+        }
+        if ("MAXIMUM".equals(rowSelection)) {
+            return false;
+        }
+        boolean ascending = "ASC".equals(orderDirection);
+        if ("LAST".equals(rowSelection)) {
+            ascending = !ascending;
+        }
+        return ascending;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private boolean shouldReplace(final Object newVal, final Object existingVal, final boolean keepMin) {
+        if (newVal == null) return false;
+        if (existingVal == null) return true;
+        final int cmp = (newVal instanceof Comparable)
+            ? ((Comparable) newVal).compareTo(existingVal)
+            : newVal.toString().compareTo(existingVal.toString());
+        return keepMin ? cmp < 0 : cmp > 0;
     }
 }

@@ -1,8 +1,10 @@
 package org.knime.bigdata.spark.dx.node.preproc.lagcolumn;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.context.SparkContextID;
 import org.knime.bigdata.spark.core.context.SparkContextUtil;
@@ -101,8 +103,8 @@ class SparkLagColumnNodeParameters implements NodeParameters {
             return context.getInPortSpec(0)
                 .filter(spec -> spec instanceof SparkDataPortObjectSpec)
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
-                .map(tableSpec -> tableSpec.stream().toList())
-                .orElse(List.of());
+                .map(tableSpec -> tableSpec.stream().collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
         }
     }
 
@@ -166,18 +168,25 @@ class SparkLagColumnNodeParameters implements NodeParameters {
         @Override
         public Direction load(final NodeSettingsRO settings) throws InvalidSettingsException {
             final String val = settings.getString(CFG_KEY, SparkLagColumnSettings.DIR_LAG);
-            return switch (val) {
-                case SparkLagColumnSettings.DIR_LEAD -> Direction.LEAD;
-                default -> Direction.LAG;
-            };
+            if (SparkLagColumnSettings.DIR_LEAD.equals(val)) {
+                return Direction.LEAD;
+            }
+            return Direction.LAG;
         }
 
         @Override
         public void save(final Direction obj, final NodeSettingsWO settings) {
-            final String val = switch (obj != null ? obj : Direction.LAG) {
-                case LEAD -> SparkLagColumnSettings.DIR_LEAD;
-                case LAG -> SparkLagColumnSettings.DIR_LAG;
-            };
+            final Direction dir = obj != null ? obj : Direction.LAG;
+            final String val;
+            switch (dir) {
+                case LEAD:
+                    val = SparkLagColumnSettings.DIR_LEAD;
+                    break;
+                case LAG:
+                default:
+                    val = SparkLagColumnSettings.DIR_LAG;
+                    break;
+            }
             settings.addString(CFG_KEY, val);
         }
 
@@ -218,7 +227,7 @@ class SparkLagColumnNodeParameters implements NodeParameters {
         @Override
         public Optional<TextMessage.Message> computeState(final NodeParametersInput context) {
             final Optional<PortObject> portObjOpt = context.getInPortObject(0);
-            if (portObjOpt.isEmpty()) {
+            if (!portObjOpt.isPresent()) {
                 return Optional.of(new TextMessage.Message(
                     "Execute the upstream node first to enable validation.",
                     "", TextMessage.MessageType.INFO));

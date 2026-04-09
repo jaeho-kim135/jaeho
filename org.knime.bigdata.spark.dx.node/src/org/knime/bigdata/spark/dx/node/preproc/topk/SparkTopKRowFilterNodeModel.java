@@ -21,7 +21,7 @@ import org.knime.core.node.port.PortType;
 
 /**
  * Node model for the Spark Top k Row Filter node. Selects the top k rows
- * based on one or two sort criteria, optionally per group.
+ * based on one or more sort criteria, optionally per group.
  */
 public class SparkTopKRowFilterNodeModel extends SparkNodeModel {
 
@@ -45,26 +45,20 @@ public class SparkTopKRowFilterNodeModel extends SparkNodeModel {
         final SparkDataPortObjectSpec sparkSpec = (SparkDataPortObjectSpec) inSpecs[0];
         final DataTableSpec tableSpec = sparkSpec.getTableSpec();
 
-        // Validate primary sort column
-        final String sortCol1 = m_settings.getSortColumn1();
-        if (sortCol1 == null || sortCol1.trim().isEmpty()) {
+        // Validate sort columns
+        final String[] sortCols = m_settings.getSortColumns();
+        if (sortCols == null || sortCols.length == 0) {
             throw new InvalidSettingsException("At least one sort column must be selected.");
         }
-        if (tableSpec.findColumnIndex(sortCol1) == -1) {
-            throw new InvalidSettingsException(
-                "Sort column '" + sortCol1 + "' not found in input table.");
-        }
-
-        // Validate secondary sort column if enabled
-        if (m_settings.useSecondSort()) {
-            final String sortCol2 = m_settings.getSortColumn2();
-            if (sortCol2 == null || sortCol2.trim().isEmpty()) {
+        for (int i = 0; i < sortCols.length; i++) {
+            final String col = sortCols[i];
+            if (col == null || col.trim().isEmpty()) {
                 throw new InvalidSettingsException(
-                    "Second sort column is enabled but not selected.");
+                    "Sort criterion " + (i + 1) + ": column must be selected.");
             }
-            if (tableSpec.findColumnIndex(sortCol2) == -1) {
+            if (tableSpec.findColumnIndex(col) == -1) {
                 throw new InvalidSettingsException(
-                    "Second sort column '" + sortCol2 + "' not found in input table.");
+                    "Sort column '" + col + "' not found in input table.");
             }
         }
 
@@ -75,7 +69,6 @@ public class SparkTopKRowFilterNodeModel extends SparkNodeModel {
         }
 
         // Validate k > Integer.MAX_VALUE constraint when no groups
-        // (both ROWS and UNIQUE_VALUES without groups use Dataset.limit(int))
         final List<String> groupCols = m_settings.getGroupColumns();
         if (k > Integer.MAX_VALUE
                 && (groupCols == null || groupCols.isEmpty())) {
@@ -113,11 +106,8 @@ public class SparkTopKRowFilterNodeModel extends SparkNodeModel {
             m_settings.getOutputOrder(),
             m_settings.isMissingsToEnd(),
             m_settings.getGroupColumns().toArray(new String[0]),
-            m_settings.getSortColumn1(),
-            m_settings.getSortOrder1(),
-            m_settings.getSortColumn2(),
-            m_settings.getSortOrder2(),
-            m_settings.useSecondSort());
+            m_settings.getSortColumns(),
+            m_settings.getSortOrders());
 
         exec.setMessage("Executing Spark Top k Row Filter job...");
         final SparkTopKRowFilterJobOutput jobOutput = SparkContextUtil

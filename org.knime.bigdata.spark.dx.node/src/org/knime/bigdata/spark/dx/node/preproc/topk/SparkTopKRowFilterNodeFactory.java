@@ -17,21 +17,20 @@ public final class SparkTopKRowFilterNodeFactory
     implements SparkNodeFactory<SparkTopKRowFilterNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Top k Row Filter (Hyim)")
+        .name("Spark Top k Row Filter (HYIM)")
         .icon("icon.png")
         .shortDescription("Selects the top k rows from a Spark DataFrame based on sorting criteria.")
-        .fullDescription("""
-            <p>Selects the top k rows from a Spark DataFrame based on one or two sort criteria.
-            Supports two filter modes:</p>
-            <ul>
-              <li><b>Top k rows</b>: Returns exactly the top k rows.</li>
-              <li><b>Top k unique values</b>: Returns all rows matching the top k distinct
-                  sort-column value combinations.</li>
-            </ul>
-            <p>Optionally, rows can be grouped by one or more columns so that the top k selection
-            is performed independently within each group (using Spark window functions).</p>
-            <p>Requires Spark 3.4+.</p>
-            """)
+        .fullDescription(
+            "<p>Selects the top k rows from a Spark DataFrame based on one or two sort criteria.\n"
+            + "Supports two filter modes:</p>\n"
+            + "<ul>\n"
+            + "  <li><b>Top k rows</b>: Returns exactly the top k rows.</li>\n"
+            + "  <li><b>Top k unique values</b>: Returns all rows matching the top k distinct\n"
+            + "      sort-column value combinations.</li>\n"
+            + "</ul>\n"
+            + "<p>Optionally, rows can be grouped by one or more columns so that the top k selection\n"
+            + "is performed independently within each group (using Spark window functions).</p>\n"
+            + "<p>Requires Spark 3.4+.</p>")
         .modelSettingsClass(SparkTopKRowFilterNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame to filter.")

@@ -20,21 +20,19 @@ public final class SparkRowSplitterNodeFactory
     implements SparkNodeFactory<SparkRowSplitterNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Row Splitter (Hyim)")
+        .name("Spark Row Splitter (HYIM)")
         .icon("icon.png")
         .shortDescription("Splits rows of a Spark DataFrame into two outputs based on filter conditions.")
-        .fullDescription("""
-            <p>Splits the input Spark DataFrame into two disjoint sets based on one or more
-            filter conditions. Rows that satisfy the conditions are sent to the first output
-            port (Matches), and rows that do not satisfy the conditions are sent to the second
-            output port (Non-Matches).</p>
-            <p>Multiple filter predicates can be combined using AND (all conditions must match)
-            or OR (any condition must match) logic. Each predicate specifies a column, a
-            comparison operator, and a value to compare against.</p>
-            <p>Supported operators include equality, inequality, comparison, BETWEEN, LIKE,
-            REGEX, IS NULL, IS NOT NULL, IS TRUE, and IS FALSE. String comparisons can be
-            configured as case-sensitive or case-insensitive.</p>
-            """)
+        .fullDescription("<p>Splits the input Spark DataFrame into two disjoint sets based on one or more "
+            + "filter conditions. Rows that satisfy the conditions are sent to the first output "
+            + "port (Matches), and rows that do not satisfy the conditions are sent to the second "
+            + "output port (Non-Matches).</p>"
+            + "<p>Multiple filter predicates can be combined using AND (all conditions must match) "
+            + "or OR (any condition must match) logic. Each predicate specifies a column, a "
+            + "comparison operator, and a value to compare against.</p>"
+            + "<p>Supported operators include equality, inequality, comparison, BETWEEN, LIKE, "
+            + "REGEX, IS NULL, IS NOT NULL, IS TRUE, and IS FALSE. String comparisons can be "
+            + "configured as case-sensitive or case-insensitive.</p>")
         .modelSettingsClass(SparkRowSplitterNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame to split.")

@@ -17,20 +17,20 @@ public final class SparkDuplicateRowFilterNodeFactory
     implements SparkNodeFactory<SparkDuplicateRowFilterNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Duplicate Row Filter (Hyim)")
+        .name("Spark Duplicate Row Filter (HYIM)")
         .icon("icon.png")
-        .shortDescription("Removes or annotates duplicate rows in a Spark DataFrame.")
-        .fullDescription("""
-            <p>Detects and handles duplicate rows in a Spark DataFrame based on selected columns.
-            Two modes are available:</p>
-            <ul>
-              <li><b>Remove duplicates:</b> Keeps only one representative row per duplicate group
-                  (first, last, minimum, maximum) or removes all duplicates entirely.</li>
-              <li><b>Keep duplicates (annotate):</b> Retains all rows and optionally adds a status
-                  column indicating whether each row is "unique", "chosen", or "duplicate".</li>
-            </ul>
-            <p>Uses Spark Window Functions (ROW_NUMBER, COUNT) for efficient distributed processing.</p>
-            """)
+        .shortDescription("Removes duplicate rows in a Spark DataFrame.")
+        .fullDescription("<p>Detects and removes duplicate rows in a Spark DataFrame based on selected columns. "
+            + "Row selection modes:</p>"
+            + "<ul>"
+            + "<li><b>Keep first/last occurrence:</b> Uses the order column and direction to determine "
+            + "which row is first or last within each duplicate group.</li>"
+            + "<li><b>Keep row with minimum/maximum value:</b> Keeps the row with the smallest or "
+            + "largest value in the order column.</li>"
+            + "<li><b>Remove all duplicates:</b> Removes all rows that have duplicates, keeping "
+            + "only truly unique rows.</li>"
+            + "</ul>"
+            + "<p>Uses Spark Window Functions (ROW_NUMBER, COUNT) for efficient distributed processing.</p>")
         .modelSettingsClass(SparkDuplicateRowFilterNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame with potential duplicate rows.")

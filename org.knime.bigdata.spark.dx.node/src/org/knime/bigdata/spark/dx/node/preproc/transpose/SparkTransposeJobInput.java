@@ -51,7 +51,7 @@ public class SparkTransposeJobInput extends JobInput {
 
     /** @return the maximum number of rows allowed */
     public int getMaxRows() {
-        return get(MAX_ROWS);
+        return getInteger(MAX_ROWS);
     }
 
     /** @return the ID column name, or empty string if not specified */

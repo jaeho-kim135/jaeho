@@ -17,20 +17,19 @@ public final class SparkMultiQueryNodeFactory
     implements SparkNodeFactory<SparkMultiQueryNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Multi Query (Hyim)")
+        .name("Spark Multi Query (HYIM)")
         .icon("icon.png")
         .shortDescription("Applies a SQL expression to multiple selected columns.")
-        .fullDescription("""
-            <p>Applies a SQL expression template to each selected target column. The placeholder
-            <b>$columnS</b> in the expression is replaced with each target column name at execution time.</p>
-            <p>For example, with expression <tt>string($columnS)</tt> and target columns
-            <tt>age</tt> and <tt>salary</tt>, the node generates:
-            <tt>SELECT string(`age`) AS `age`, string(`salary`) AS `salary`, ... FROM input</tt></p>
-            <p>Use the <b>Output column pattern</b> to control output column naming:
-            <tt>$columnS</tt> replaces the original column (default), or <tt>$columnS_str</tt> adds a new column.</p>
-            <p>The <b>Keep original columns</b> option preserves the original target columns alongside
-            the transformed ones (requires a non-default output pattern to avoid duplicate column names).</p>
-            """)
+        .fullDescription(
+            "<p>Applies a SQL expression template to each selected target column. The placeholder\n"
+            + "<b>$columnS</b> in the expression is replaced with each target column name at execution time.</p>\n"
+            + "<p>For example, with expression <tt>string($columnS)</tt> and target columns\n"
+            + "<tt>age</tt> and <tt>salary</tt>, the node generates:\n"
+            + "<tt>SELECT string(`age`) AS `age`, string(`salary`) AS `salary`, ... FROM input</tt></p>\n"
+            + "<p>Use the <b>Output column pattern</b> to control output column naming:\n"
+            + "<tt>$columnS</tt> replaces the original column (default), or <tt>$columnS_str</tt> adds a new column.</p>\n"
+            + "<p>The <b>Keep original columns</b> option preserves the original target columns alongside\n"
+            + "the transformed ones (requires a non-default output pattern to avoid duplicate column names).</p>")
         .modelSettingsClass(SparkMultiQueryNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame to apply the SQL expression to.")

@@ -90,9 +90,9 @@ final class SparkExpressionWebSettings extends ScriptingNodeSettings implements 
             final Map<SettingsType, NodeAndVariableSettingsRO> previousSettings,
             final Map<SettingsType, NodeAndVariableSettingsWO> settings) throws InvalidSettingsException {
 
-        final var rawExpressions = data.get(JSON_KEY_EXPRESSIONS);
-        final var rawOutputModes = data.get(JSON_KEY_OUTPUT_MODES);
-        final var rawColumnNames = data.get(JSON_KEY_COLUMN_NAMES);
+        final Object rawExpressions = data.get(JSON_KEY_EXPRESSIONS);
+        final Object rawOutputModes = data.get(JSON_KEY_OUTPUT_MODES);
+        final Object rawColumnNames = data.get(JSON_KEY_COLUMN_NAMES);
 
         if (rawExpressions == null || rawOutputModes == null || rawColumnNames == null) {
             throw new InvalidSettingsException("Missing required settings data from the dialog.");

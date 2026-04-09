@@ -17,16 +17,15 @@ public final class SparkUnpivotNodeFactory
     implements SparkNodeFactory<SparkUnpivotNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Unpivot (Hyim)")
+        .name("Spark Unpivot (HYIM)")
         .icon("icon.png")
         .shortDescription("Unpivots (melts) a Spark DataFrame from wide format to long format.")
-        .fullDescription("""
-            <p>Transforms a wide-format Spark DataFrame into a long-format DataFrame using the
-            Spark Dataset.unpivot() API (requires Spark 3.4+).</p>
-            <p>Select the columns to retain as identifier columns, and the columns to unpivot
-            into rows. Each value column becomes a row with the column name in the variable column
-            and the cell value in the value column.</p>
-            """)
+        .fullDescription(
+            "<p>Transforms a wide-format Spark DataFrame into a long-format DataFrame using the\n"
+            + "Spark Dataset.unpivot() API (requires Spark 3.4+).</p>\n"
+            + "<p>Select the columns to retain as identifier columns, and the columns to unpivot\n"
+            + "into rows. Each value column becomes a row with the column name in the variable column\n"
+            + "and the cell value in the value column.</p>")
         .modelSettingsClass(SparkUnpivotNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame to unpivot.")

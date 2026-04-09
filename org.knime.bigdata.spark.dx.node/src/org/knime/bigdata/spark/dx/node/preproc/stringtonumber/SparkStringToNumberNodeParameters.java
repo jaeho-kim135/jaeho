@@ -1,6 +1,9 @@
 package org.knime.bigdata.spark.dx.node.preproc.stringtonumber;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.port.data.SparkDataPortObjectSpec;
 import org.knime.core.data.DataColumnSpec;
@@ -68,8 +71,8 @@ class SparkStringToNumberNodeParameters implements NodeParameters {
                 .map(tableSpec -> tableSpec.stream()
                     .filter(colSpec -> colSpec.getType().isCompatible(
                         org.knime.core.data.StringValue.class))
-                    .toList())
-                .orElse(List.of());
+                    .collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
         }
     }
 
@@ -100,20 +103,26 @@ class SparkStringToNumberNodeParameters implements NodeParameters {
         @Override
         public ParseTypeOption load(final NodeSettingsRO settings) throws InvalidSettingsException {
             final String val = settings.getString(CFG_KEY, "DOUBLE");
-            return switch (val) {
-                case "INTEGER" -> ParseTypeOption.INTEGER;
-                case "LONG" -> ParseTypeOption.LONG;
-                default -> ParseTypeOption.DOUBLE;
-            };
+            if ("INTEGER".equals(val)) {
+                return ParseTypeOption.INTEGER;
+            } else if ("LONG".equals(val)) {
+                return ParseTypeOption.LONG;
+            } else {
+                return ParseTypeOption.DOUBLE;
+            }
         }
 
         @Override
         public void save(final ParseTypeOption obj, final NodeSettingsWO settings) {
-            final String val = switch (obj != null ? obj : ParseTypeOption.DOUBLE) {
-                case INTEGER -> "INTEGER";
-                case LONG -> "LONG";
-                case DOUBLE -> "DOUBLE";
-            };
+            final ParseTypeOption effective = obj != null ? obj : ParseTypeOption.DOUBLE;
+            final String val;
+            if (effective == ParseTypeOption.INTEGER) {
+                val = "INTEGER";
+            } else if (effective == ParseTypeOption.LONG) {
+                val = "LONG";
+            } else {
+                val = "DOUBLE";
+            }
             settings.addString(CFG_KEY, val);
         }
 

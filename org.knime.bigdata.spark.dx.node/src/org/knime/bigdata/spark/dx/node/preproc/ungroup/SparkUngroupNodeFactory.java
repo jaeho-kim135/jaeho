@@ -17,22 +17,21 @@ public final class SparkUngroupNodeFactory
     implements SparkNodeFactory<SparkUngroupNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Ungroup (Hyim)")
+        .name("Spark Ungroup (HYIM)")
         .icon("icon.png")
         .shortDescription("Explodes array, map, or delimited string columns into individual rows.")
-        .fullDescription("""
-            <p>Ungroups (explodes) selected columns of a Spark DataFrame. Each element in an array
-            or map column becomes a separate row. String columns can be split by a delimiter before
-            exploding.</p>
-            <p>Two modes are supported:</p>
-            <ul>
-              <li><b>Auto-detect:</b> Automatically detects ArrayType/MapType columns and applies
-                  explode(). StringType columns are split by the specified delimiter.</li>
-              <li><b>Split string by delimiter:</b> Treats all selected columns as strings, splits
-                  them by the specified delimiter, and explodes the resulting arrays.</li>
-            </ul>
-            <p>Requires Spark 3.4+.</p>
-            """)
+        .fullDescription(
+            "<p>Ungroups (explodes) selected columns of a Spark DataFrame. Each element in an array\n"
+            + "or map column becomes a separate row. String columns can be split by a delimiter before\n"
+            + "exploding.</p>\n"
+            + "<p>Two modes are supported:</p>\n"
+            + "<ul>\n"
+            + "  <li><b>Auto-detect:</b> Automatically detects ArrayType/MapType columns and applies\n"
+            + "      explode(). StringType columns are split by the specified delimiter.</li>\n"
+            + "  <li><b>Split string by delimiter:</b> Treats all selected columns as strings, splits\n"
+            + "      them by the specified delimiter, and explodes the resulting arrays.</li>\n"
+            + "</ul>\n"
+            + "<p>Requires Spark 3.4+.</p>")
         .modelSettingsClass(SparkUngroupNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame with array, map, or string columns to ungroup.")

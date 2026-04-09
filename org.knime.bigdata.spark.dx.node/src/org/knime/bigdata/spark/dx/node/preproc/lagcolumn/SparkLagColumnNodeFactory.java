@@ -17,17 +17,16 @@ public final class SparkLagColumnNodeFactory
     implements SparkNodeFactory<SparkLagColumnNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Lag Column (Hyim)")
+        .name("Spark Lag Column (HYIM)")
         .icon("lag_column.png")
         .shortDescription("Creates lag or lead columns using Spark Window functions.")
-        .fullDescription("""
-            <p>Creates one or more lag (previous row) or lead (next row) columns using Spark SQL
-            Window functions. Requires an order-by column since Spark DataFrames have no inherent
-            row order.</p>
-            <p>For each copy, the offset is calculated as: copy_number * interval. The new columns
-            are named 'column(-offset)' for lag or 'column(+offset)' for lead.</p>
-            <p>Optionally, rows with incomplete (null) lag values can be filtered out.</p>
-            """)
+        .fullDescription(
+            "<p>Creates one or more lag (previous row) or lead (next row) columns using Spark SQL\n"
+            + "Window functions. Requires an order-by column since Spark DataFrames have no inherent\n"
+            + "row order.</p>\n"
+            + "<p>For each copy, the offset is calculated as: copy_number * interval. The new columns\n"
+            + "are named 'column(-offset)' for lag or 'column(+offset)' for lead.</p>\n"
+            + "<p>Optionally, rows with incomplete (null) lag values can be filtered out.</p>")
         .modelSettingsClass(SparkLagColumnNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame/RDD")

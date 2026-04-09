@@ -2,7 +2,7 @@
 <knimeNode xmlns="http://knime.org/node/v3.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://knime.org/node/v3.1 http://knime.org/node/v3.1.xsd"
     icon="icon.png" type="Manipulator">
-    <name>Spark Multi Query(Hyim)</name>
+    <name>Spark Multi Query(HYIM)</name>
     <shortDescription>
         Applies a SQL expression to multiple selected columns by replacing the $columnS placeholder
         with each target column name.

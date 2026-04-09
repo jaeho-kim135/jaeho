@@ -1,8 +1,10 @@
 package org.knime.bigdata.spark.dx.node.sql.ruleengine;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.context.SparkContextID;
 import org.knime.bigdata.spark.core.context.SparkContextUtil;
@@ -111,8 +113,8 @@ class SparkRuleEngineNodeParameters implements NodeParameters {
             return context.getInPortSpec(0)
                 .filter(spec -> spec instanceof SparkDataPortObjectSpec)
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
-                .map(tableSpec -> tableSpec.stream().toList())
-                .orElse(List.of());
+                .map(tableSpec -> tableSpec.stream().collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
         }
     }
 
@@ -146,7 +148,7 @@ class SparkRuleEngineNodeParameters implements NodeParameters {
         @Override
         public Optional<TextMessage.Message> computeState(final NodeParametersInput context) {
             Optional<PortObject> portObjOpt = context.getInPortObject(0);
-            if (portObjOpt.isEmpty()) {
+            if (!portObjOpt.isPresent()) {
                 return Optional.of(new TextMessage.Message(
                     "Execute the upstream node first to enable validation.",
                     "", TextMessage.MessageType.INFO));

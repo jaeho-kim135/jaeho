@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<knimeNode xmlns="http://knime.org/node/v3.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://knime.org/node/v3.1 http://knime.org/node/v3.1.xsd"
+    icon="icon.png" type="Manipulator">
+    <name>Spark Concatenate (HYIM)</name>
+    <shortDescription>
+        Vertically concatenates two Spark DataFrames with column mapping.
+    </shortDescription>
+    <fullDescription>
+        <intro>
+            <p>
+                Vertically concatenates (appends rows of) two Spark DataFrames
+                with configurable column mapping and automatic type resolution.
+            </p>
+            <p><b>Features:</b></p>
+            <ul>
+                <li><b>Auto-mapping</b>: Columns with the same name are automatically mapped.</li>
+                <li><b>Manual mapping</b>: Override auto-mapping by specifying explicit column matches.</li>
+                <li><b>Type resolution</b>: Same type kept; numeric promotion (Int&#8594;Long&#8594;Double);
+                    Left=String accepts any Right type as toString(); otherwise Right values become null.</li>
+                <li><b>Unmatched columns</b>: Columns not in any mapping can be included (filled with null)
+                    or excluded, independently for left and right inputs.</li>
+            </ul>
+        </intro>
+        <tab name="Column Mapping">
+            <option name="Mapping Table">
+                A table where each row maps a Left column to a Right column.
+                Click a cell to select a column from a dropdown list.
+                Use <b>Auto Map</b> to automatically match columns with the same name.
+                Use <b>Add Mapping</b> to add a new mapping row.
+            </option>
+            <option name="Unmatched Left Columns">
+                How to handle left columns not present in any mapping.
+                <b>Include (fill with null)</b>: Adds them to output with null values for right-side rows.
+                <b>Exclude</b>: Omits them from output.
+            </option>
+            <option name="Unmatched Right Columns">
+                How to handle right columns not present in any mapping.
+                <b>Include (fill with null)</b>: Adds them to output with null values for left-side rows.
+                If the column name conflicts with an existing output column, a suffix is added.
+                <b>Exclude</b>: Omits them from output.
+            </option>
+        </tab>
+    </fullDescription>
+    <ports>
+        <inPort index="0" name="Left Spark DataFrame/RDD">
+            Left (primary) Spark DataFrame.
+        </inPort>
+        <inPort index="1" name="Right Spark DataFrame/RDD">
+            Right (secondary) Spark DataFrame to concatenate.
+        </inPort>
+        <outPort index="0" name="Concatenated Spark DataFrame/RDD">
+            Concatenated Spark DataFrame.
+        </outPort>
+    </ports>
+</knimeNode>

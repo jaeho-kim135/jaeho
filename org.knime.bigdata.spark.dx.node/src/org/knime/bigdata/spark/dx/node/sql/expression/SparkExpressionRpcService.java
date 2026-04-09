@@ -1,5 +1,6 @@
 package org.knime.bigdata.spark.dx.node.sql.expression;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,11 +11,13 @@ import org.knime.bigdata.spark.core.context.SparkContextID;
 import org.knime.bigdata.spark.core.context.SparkContextUtil;
 import org.knime.bigdata.spark.core.port.data.SparkDataPortObject;
 import org.knime.core.node.ExecutionMonitor;
-import org.knime.core.node.workflow.FlowVariable;
-import org.knime.core.node.workflow.NodeContext;
+import org.knime.core.node.port.PortObject;
 import org.knime.core.node.workflow.ConnectionContainer;
+import org.knime.core.node.workflow.FlowObjectStack;
+import org.knime.core.node.workflow.FlowVariable;
 import org.knime.core.node.workflow.NativeNodeContainer;
 import org.knime.core.node.workflow.NodeContainer;
+import org.knime.core.node.workflow.NodeContext;
 import org.knime.core.node.workflow.WorkflowManager;
 
 /**
@@ -161,9 +164,9 @@ public final class SparkExpressionRpcService {
      */
     private String[] resolveFlowVariables(final List<String> expressions) {
         final NodeContainer nc = m_nodeContext.getNodeContainer();
-        Map<String, FlowVariable> flowVars = Map.of();
+        Map<String, FlowVariable> flowVars = Collections.emptyMap();
         if (nc instanceof NativeNodeContainer) {
-            final var stack = ((NativeNodeContainer) nc).getFlowObjectStack();
+            final FlowObjectStack stack = ((NativeNodeContainer) nc).getFlowObjectStack();
             if (stack != null) {
                 flowVars = stack.getAvailableFlowVariables(FlowVariable.Type.values());
             }
@@ -228,7 +231,7 @@ public final class SparkExpressionRpcService {
                 final NodeContainer sourceNC = wfm.getNodeContainer(cc.getSource());
                 // getOutPort().getPortObject() works for both NativeNodeContainer
                 // and WorkflowManager (metanodes/components)
-                final var portObject = sourceNC.getOutPort(cc.getSourcePort()).getPortObject();
+                final PortObject portObject = sourceNC.getOutPort(cc.getSourcePort()).getPortObject();
                 if (portObject instanceof SparkDataPortObject) {
                     return (SparkDataPortObject) portObject;
                 }
@@ -245,7 +248,7 @@ public final class SparkExpressionRpcService {
         String firstMsg = null;
         while (current != null) {
             final String msg = current.getMessage();
-            if (msg != null && !msg.isBlank()) {
+            if (msg != null && !msg.trim().isEmpty()) {
                 if (firstMsg == null) {
                     firstMsg = msg;
                 }

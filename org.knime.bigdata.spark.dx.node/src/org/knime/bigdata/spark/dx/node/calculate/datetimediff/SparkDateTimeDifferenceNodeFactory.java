@@ -17,20 +17,19 @@ public final class SparkDateTimeDifferenceNodeFactory
     implements SparkNodeFactory<SparkDateTimeDifferenceNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Date&Time Difference (Hyim)")
+        .name("Spark Date&Time Difference (HYIM)")
         .icon("icon.png")
         .shortDescription("Calculates the difference between two date/time values in a Spark DataFrame.")
-        .fullDescription("""
-            <p>Calculates the difference between two date/time values in a Spark DataFrame.
-            The first value is always taken from a selected column. The second value can come from
-            another column, a fixed date/time string, or the current timestamp.</p>
-            <p>The result granularity can be configured to years, months, weeks, days, hours, minutes,
-            seconds, milliseconds, or microseconds. The direction of the subtraction can also be chosen.</p>
-            <p>For Years/Months: uses Spark's <code>months_between()</code> function.<br/>
-            For Weeks/Days: uses Spark's <code>datediff()</code> function.<br/>
-            For Hours/Minutes/Seconds/Milliseconds/Microseconds: uses Spark's <code>unix_timestamp()</code>,
-            <code>unix_millis()</code>, or <code>unix_micros()</code> functions.</p>
-            """)
+        .fullDescription(
+            "<p>Calculates the difference between two date/time values in a Spark DataFrame.\n"
+            + "The first value is always taken from a selected column. The second value can come from\n"
+            + "another column, a fixed date/time string, or the current timestamp.</p>\n"
+            + "<p>The result granularity can be configured to years, months, weeks, days, hours, minutes,\n"
+            + "seconds, milliseconds, or microseconds. The direction of the subtraction can also be chosen.</p>\n"
+            + "<p>For Years/Months: uses Spark's <code>months_between()</code> function.<br/>\n"
+            + "For Weeks/Days: uses Spark's <code>datediff()</code> function.<br/>\n"
+            + "For Hours/Minutes/Seconds/Milliseconds/Microseconds: uses Spark's <code>unix_timestamp()</code>,\n"
+            + "<code>unix_millis()</code>, or <code>unix_micros()</code> functions.</p>")
         .modelSettingsClass(SparkDateTimeDifferenceNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame containing date/time columns.")

@@ -14,7 +14,6 @@ import org.knime.bigdata.spark3_5.api.TypeConverters;
 
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.date_format;
-import static org.apache.spark.sql.functions.expr;
 
 /**
  * Spark job that converts date/time columns to string columns using
@@ -36,8 +35,6 @@ public class DateTimeToStringJob
 
         final String[] columns = input.getColumns();
         final String format = input.getFormat();
-        final String locale = input.getLocale();
-        final boolean useLocale = locale != null && !locale.isEmpty();
         final boolean isReplace = input.isReplace();
         final String suffix = input.getSuffix();
 
@@ -46,19 +43,9 @@ public class DateTimeToStringJob
         for (final String colName : columns) {
             final String outputCol = isReplace ? colName : colName + suffix;
             try {
-                if (useLocale) {
-                    // Use 3-argument date_format(col, format, locale) via SQL expression
-                    // Escape single quotes and backticks to prevent SQL injection
-                    final String safeColName = colName.replace("`", "``");
-                    final String safeFormat = format.replace("'", "''");
-                    final String safeLocale = locale.replace("'", "''");
-                    result = result.withColumn(outputCol,
-                        expr("date_format(`" + safeColName + "`, '" + safeFormat + "', '" + safeLocale + "')"));
-                } else {
-                    final String safeCol = colName.replace("`", "``");
-                    result = result.withColumn(outputCol,
-                        date_format(col("`" + safeCol + "`"), format));
-                }
+                final String safeCol = colName.replace("`", "``");
+                result = result.withColumn(outputCol,
+                    date_format(col("`" + safeCol + "`"), format));
             } catch (final Exception e) {
                 throw new KNIMESparkException(
                     "Failed to convert column '" + colName + "' with format '" + format

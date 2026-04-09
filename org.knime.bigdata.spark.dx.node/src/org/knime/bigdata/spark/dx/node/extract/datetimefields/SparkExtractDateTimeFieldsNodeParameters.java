@@ -1,6 +1,8 @@
 package org.knime.bigdata.spark.dx.node.extract.datetimefields;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.port.data.SparkDataPortObjectSpec;
 import org.knime.core.data.DataColumnSpec;
@@ -17,6 +19,7 @@ import org.knime.node.parameters.updates.EffectPredicate;
 import org.knime.node.parameters.updates.EffectPredicateProvider;
 import org.knime.node.parameters.updates.ValueReference;
 import org.knime.node.parameters.updates.util.BooleanReference;
+import org.knime.bigdata.spark.dx.node.LocaleChoicesProvider;
 import org.knime.node.parameters.widget.choices.ValueSwitchWidget;
 import org.knime.node.parameters.widget.text.TextInputWidget;
 import org.knime.node.parameters.widget.choices.ChoicesProvider;
@@ -92,8 +95,8 @@ class SparkExtractDateTimeFieldsNodeParameters implements NodeParameters {
             return context.getInPortSpec(0)
                 .filter(spec -> spec instanceof SparkDataPortObjectSpec)
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
-                .map(tableSpec -> tableSpec.stream().toList())
-                .orElse(List.of());
+                .map(tableSpec -> tableSpec.stream().collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
         }
     }
 
@@ -205,8 +208,8 @@ class SparkExtractDateTimeFieldsNodeParameters implements NodeParameters {
 
     @Layout(DialogSections.NameFieldsSection.class)
     @Widget(title = "Locale",
-        description = "Locale for name fields (e.g., en, ko, ja). Affects day-of-week and month names.")
-    @TextInputWidget(placeholder = "en")
+        description = "Locale for name fields. Affects day-of-week and month names.")
+    @ChoicesProvider(LocaleChoicesProvider.class)
     @Persist(configKey = SparkExtractDateTimeFieldsSettings.CFG_LOCALE)
     String m_locale = "en";
 

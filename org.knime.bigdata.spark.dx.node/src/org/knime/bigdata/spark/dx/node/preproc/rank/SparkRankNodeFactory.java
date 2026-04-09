@@ -17,24 +17,22 @@ public final class SparkRankNodeFactory
     implements SparkNodeFactory<SparkRankNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Rank (Hyim)")
+        .name("Spark Rank (HYIM)")
         .icon("icon.png")
         .shortDescription("Assigns rank values to rows of a Spark DataFrame using window functions.")
-        .fullDescription("""
-            <p>Assigns rank values to rows of a Spark DataFrame based on the ordering of one or more
-            columns, using Spark SQL window functions (requires Spark 3.4+).</p>
-            <p>Supports three ranking modes:</p>
-            <ul>
-              <li><b>Standard (RANK)</b>: Tied rows get the same rank; the next distinct value
-                  gets a rank incremented by the number of ties (e.g., 1, 1, 3, 4).</li>
-              <li><b>Dense (DENSE_RANK)</b>: Tied rows get the same rank; the next distinct value
-                  gets a rank incremented by one (e.g., 1, 1, 2, 3).</li>
-              <li><b>Ordinal (ROW_NUMBER)</b>: Each row gets a unique rank, even for ties
-                  (e.g., 1, 2, 3, 4).</li>
-            </ul>
-            <p>Optionally, ranking can be partitioned by group columns so that ranks are computed
-            independently within each group.</p>
-            """)
+        .fullDescription("<p>Assigns rank values to rows of a Spark DataFrame based on the ordering of one or more "
+            + "columns, using Spark SQL window functions (requires Spark 3.4+).</p>"
+            + "<p>Supports three ranking modes:</p>"
+            + "<ul>"
+            + "<li><b>Standard (RANK)</b>: Tied rows get the same rank; the next distinct value "
+            + "gets a rank incremented by the number of ties (e.g., 1, 1, 3, 4).</li>"
+            + "<li><b>Dense (DENSE_RANK)</b>: Tied rows get the same rank; the next distinct value "
+            + "gets a rank incremented by one (e.g., 1, 1, 2, 3).</li>"
+            + "<li><b>Ordinal (ROW_NUMBER)</b>: Each row gets a unique rank, even for ties "
+            + "(e.g., 1, 2, 3, 4).</li>"
+            + "</ul>"
+            + "<p>Optionally, ranking can be partitioned by group columns so that ranks are computed "
+            + "independently within each group.</p>")
         .modelSettingsClass(SparkRankNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame to rank.")

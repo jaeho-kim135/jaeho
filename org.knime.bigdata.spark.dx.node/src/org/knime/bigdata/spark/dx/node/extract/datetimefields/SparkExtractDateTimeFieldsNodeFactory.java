@@ -18,22 +18,21 @@ public final class SparkExtractDateTimeFieldsNodeFactory
     implements SparkNodeFactory<SparkExtractDateTimeFieldsNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Extract Date&Time Fields (Hyim)")
+        .name("Spark Extract Date&Time Fields (HYIM)")
         .icon("icon.png")
         .shortDescription("Extracts date and time fields (year, month, day, hour, etc.) from a date/time column.")
-        .fullDescription("""
-            <p>Extracts individual date and time fields from a date, timestamp, or time column
-            in a Spark DataFrame. Supported fields include:</p>
-            <ul>
-                <li><b>Date fields:</b> Year, Month (number), Day of month, Day of week (number),
-                    Day of year, Week of year, Quarter</li>
-                <li><b>Time fields:</b> Hour, Minute, Second</li>
-                <li><b>Subsecond:</b> Millisecond, Microsecond, or Nanosecond</li>
-                <li><b>Name fields:</b> Day of week name, Month name (locale-dependent)</li>
-            </ul>
-            <p>Each extracted field is appended as a new integer column (or string column for name fields).
-            An optional column name prefix can be specified.</p>
-            """)
+        .fullDescription(
+            "<p>Extracts individual date and time fields from a date, timestamp, or time column\n"
+            + "in a Spark DataFrame. Supported fields include:</p>\n"
+            + "<ul>\n"
+            + "    <li><b>Date fields:</b> Year, Month (number), Day of month, Day of week (number),\n"
+            + "        Day of year, Week of year, Quarter</li>\n"
+            + "    <li><b>Time fields:</b> Hour, Minute, Second</li>\n"
+            + "    <li><b>Subsecond:</b> Millisecond, Microsecond, or Nanosecond</li>\n"
+            + "    <li><b>Name fields:</b> Day of week name, Month name (locale-dependent)</li>\n"
+            + "</ul>\n"
+            + "<p>Each extracted field is appended as a new integer column (or string column for name fields).\n"
+            + "An optional column name prefix can be specified.</p>")
         .modelSettingsClass(SparkExtractDateTimeFieldsNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame containing a date/time column.")

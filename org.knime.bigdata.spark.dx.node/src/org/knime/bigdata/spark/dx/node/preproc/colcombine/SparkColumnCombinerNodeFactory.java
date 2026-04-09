@@ -17,15 +17,13 @@ public final class SparkColumnCombinerNodeFactory
     implements SparkNodeFactory<SparkColumnCombinerNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Column Combiner (Hyim)")
+        .name("Spark Column Combiner (HYIM)")
         .icon("icon.png")
         .shortDescription("Combines multiple columns into a single string column using a delimiter.")
-        .fullDescription("""
-            <p>Combines the values of multiple columns into a single string column using
-            Spark's CONCAT_WS function (requires Spark 3.4+).</p>
-            <p>Select the columns to combine, specify a delimiter, and configure how
-            missing values and delimiter occurrences within cells should be handled.</p>
-            """)
+        .fullDescription("<p>Combines the values of multiple columns into a single string column using "
+            + "Spark's CONCAT_WS function (requires Spark 3.4+).</p>"
+            + "<p>Select the columns to combine, specify a delimiter, and configure how "
+            + "missing values and delimiter occurrences within cells should be handled.</p>")
         .modelSettingsClass(SparkColumnCombinerNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame with columns to combine.")

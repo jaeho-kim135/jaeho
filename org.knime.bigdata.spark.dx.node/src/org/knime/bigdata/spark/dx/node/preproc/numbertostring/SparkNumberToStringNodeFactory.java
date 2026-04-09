@@ -17,13 +17,12 @@ public final class SparkNumberToStringNodeFactory
     implements SparkNodeFactory<SparkNumberToStringNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Number to String(Hyim)")
+        .name("Spark Number to String(HYIM)")
         .icon("number_string.png")
         .shortDescription("Converts numeric columns to String type in a Spark DataFrame.")
-        .fullDescription("""
-            <p>Converts selected numeric columns (Integer, Long, Double) in a Spark DataFrame
-            to String type. Null values remain null in the output.</p>
-            """)
+        .fullDescription(
+            "<p>Converts selected numeric columns (Integer, Long, Double) in a Spark DataFrame\n"
+            + "to String type. Null values remain null in the output.</p>")
         .modelSettingsClass(SparkNumberToStringNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame containing numeric columns to convert.")

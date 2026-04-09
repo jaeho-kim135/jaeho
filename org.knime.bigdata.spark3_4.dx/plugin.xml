@@ -12,19 +12,19 @@
             ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.sql.expression.ExpressionJobRunFactoryProvider">
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.constantvalue.ConstantValueColumnJobRunFactoryProvider">
+            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.stringtonumber.StringToNumberJobRunFactoryProvider">
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.rank.RankJobRunFactoryProvider">
+            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.numbertostring.NumberToStringJobRunFactoryProvider">
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.cellsplit.CellSplitterJobRunFactoryProvider">
+            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.stringtodatetime.StringToDateTimeJobRunFactoryProvider">
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.colcombine.ColumnCombinerJobRunFactoryProvider">
+            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.sql.ruleengine.RuleEngineJobRunFactoryProvider">
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.stringreplacer.StringReplacerJobRunFactoryProvider">
+            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.duplicates.DuplicateRowFilterJobRunFactoryProvider">
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
             ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.rowsplitter.RowSplitterJobRunFactoryProvider">
@@ -36,49 +36,25 @@
             ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.extract.datetimefields.ExtractDateTimeFieldsJobRunFactoryProvider">
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.lagcolumn.LagColumnJobRunFactoryProvider">
+            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.stringreplacer.StringReplacerJobRunFactoryProvider">
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.topk.TopKRowFilterJobRunFactoryProvider">
+            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.rank.RankJobRunFactoryProvider">
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.ungroup.UngroupJobRunFactoryProvider">
+            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.constantvalue.ConstantValueColumnJobRunFactoryProvider">
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.stringmanip.StringManipJobRunFactoryProvider">
+            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.colcombine.ColumnCombinerJobRunFactoryProvider">
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.transpose.TransposeJobRunFactoryProvider">
+            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.cellsplit.CellSplitterJobRunFactoryProvider">
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.binner.NumericBinnerJobRunFactoryProvider">
+            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.editcolumn.EditColumnJobRunFactoryProvider">
       </JobRunFactoryProvider>
       <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.rounddouble.RoundDoubleJobRunFactoryProvider">
-      </JobRunFactoryProvider>
-      <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.calculate.datetimediff.DateTimeDifferenceJobRunFactoryProvider">
-      </JobRunFactoryProvider>
-      <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.manipulate.datetimeshift.DateTimeShiftJobRunFactoryProvider">
-      </JobRunFactoryProvider>
-      <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.caseconvert.CaseConvertJobRunFactoryProvider">
-      </JobRunFactoryProvider>
-      <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.duplicates.DuplicateRowFilterJobRunFactoryProvider">
-      </JobRunFactoryProvider>
-      <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.sql.ruleengine.RuleEngineJobRunFactoryProvider">
-      </JobRunFactoryProvider>
-      <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.stringtonumber.StringToNumberJobRunFactoryProvider">
-      </JobRunFactoryProvider>
-      <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.numbertostring.NumberToStringJobRunFactoryProvider">
-      </JobRunFactoryProvider>
-      <JobRunFactoryProvider
-            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.stringtodatetime.StringToDateTimeJobRunFactoryProvider">
+            ProviderClass="org.knime.bigdata.spark3_4.dx.jobs.preproc.concatenate.ConcatenateJobRunFactoryProvider">
       </JobRunFactoryProvider>
    </extension>
    <extension point="org.knime.bigdata.spark.core.SparkJarProvider">

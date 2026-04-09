@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<knimeNode xmlns="http://knime.org/node/v3.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://knime.org/node/v3.1 http://knime.org/node/v3.1.xsd"
+    icon="icon.png" type="Manipulator">
+    <name>Spark Rule Engine (HYIM)</name>
+    <shortDescription>
+        Applies IF-THEN rules to a Spark DataFrame using CASE WHEN expressions.
+    </shortDescription>
+    <fullDescription>
+        <intro>
+            <p>
+                Converts user-defined IF-THEN rules into Spark SQL CASE WHEN expressions
+                and applies them to each row of the input Spark DataFrame.
+            </p>
+            <p>Rules are specified one per line in the format: <tt>condition =&gt; outcome</tt></p>
+            <p><b>Supported syntax:</b></p>
+            <ul>
+                <li>Column references: <tt>$column_name$</tt></li>
+                <li>Comparison operators: <tt>&gt;</tt>, <tt>&lt;</tt>, <tt>&gt;=</tt>,
+                    <tt>&lt;=</tt>, <tt>=</tt>, <tt>!=</tt></li>
+                <li>Logical operators: <tt>AND</tt>, <tt>OR</tt>, <tt>NOT</tt>, <tt>XOR</tt></li>
+                <li>Missing check: <tt>$col$ IS MISSING</tt>, <tt>$col$ IS NOT MISSING</tt></li>
+                <li>Pattern matching: <tt>$col$ LIKE "pattern"</tt>, <tt>$col$ MATCHES "regex"</tt></li>
+                <li>IN operator: <tt>$col$ IN ("a", "b", "c")</tt></li>
+                <li>Outcome values: string <tt>"text"</tt>, number <tt>123</tt>,
+                    <tt>TRUE</tt>/<tt>FALSE</tt>, column <tt>$col$</tt></li>
+                <li>Comments: lines starting with <tt>//</tt> are ignored</li>
+                <li>Flow variables: <tt>$${SFlowVar}$$</tt>, <tt>$${IFlowVar}$$</tt>,
+                    <tt>$${DFlowVar}$$</tt></li>
+            </ul>
+            <p><b>Examples:</b></p>
+            <ul>
+                <li><tt>$age$ &gt; 60 =&gt; "Senior"</tt></li>
+                <li><tt>$dept$ = "IT" AND $salary$ &gt; 50000 =&gt; "High-IT"</tt></li>
+                <li><tt>$name$ LIKE "A%" =&gt; "Starts with A"</tt></li>
+                <li><tt>$status$ IS MISSING =&gt; "Unknown"</tt></li>
+                <li><tt>TRUE =&gt; "Other"</tt> (catch-all default)</li>
+            </ul>
+        </intro>
+        <tab name="Rule Editor">
+            <option name="Input Columns">
+                Left panel: Lists all columns from the input Spark DataFrame with their data types.
+                Double-click a column name to insert it into the rule editor as <tt>$column$</tt>.
+            </option>
+            <option name="Flow Variables">
+                Left panel (bottom): Lists available flow variables.
+                Double-click to insert as <tt>$${SvarName}$$</tt>.
+            </option>
+            <option name="Rule Editor">
+                Center area (top): The main text area where you write rules, one per line.
+                Format: <tt>condition =&gt; outcome</tt>.
+                Lines starting with <tt>//</tt> are comments.
+            </option>
+            <option name="Default Value">
+                If checked, rows not matching any rule get a null (MISSING) value.
+                Otherwise, specify a custom default value.
+            </option>
+            <option name="Output Mode">
+                <b>APPEND</b>: Creates a new column with the specified name.
+                <b>REPLACE</b>: Replaces an existing column with the rule result.
+            </option>
+            <option name="Output Column Name">
+                The name of the output column (APPEND mode) or column to replace (REPLACE mode).
+            </option>
+            <option name="Function Catalog">
+                Right panel: A categorized list of rule syntax elements, operators, and
+                common Spark SQL functions. Double-click to insert into the rule editor.
+            </option>
+            <option name="Output Preview / Evaluate">
+                Center area (bottom): Click Evaluate to validate rules by running them
+                on the Spark cluster. Shows a formatted preview of the result on success.
+            </option>
+        </tab>
+    </fullDescription>
+    <ports>
+        <inPort index="0" name="Spark DataFrame/RDD">
+            Spark DataFrame/RDD to apply rules to.
+        </inPort>
+        <outPort index="0" name="Spark DataFrame/RDD">
+            Spark DataFrame/RDD with the rule result column added or replaced.
+        </outPort>
+    </ports>
+</knimeNode>

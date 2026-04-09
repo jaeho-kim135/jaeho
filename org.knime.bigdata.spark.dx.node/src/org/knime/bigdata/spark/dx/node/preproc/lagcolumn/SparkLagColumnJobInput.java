@@ -51,8 +51,8 @@ public class SparkLagColumnJobInput extends JobInput {
     public String getColumn() { return get(KEY_COLUMN); }
     public String getOrderColumn() { return get(KEY_ORDER_COLUMN); }
     public String getDirection() { return get(KEY_DIRECTION); }
-    public int getNumCopies() { return get(KEY_NUM_COPIES); }
-    public int getLagInterval() { return get(KEY_LAG_INTERVAL); }
+    public int getNumCopies() { return getInteger(KEY_NUM_COPIES); }
+    public int getLagInterval() { return getInteger(KEY_LAG_INTERVAL); }
     public String[] getGroupColumns() { return getOrDefault(KEY_GROUP_COLUMNS, new String[0]); }
     public boolean isSkipIncompleteRows() { return get(KEY_SKIP_INCOMPLETE); }
     public boolean isValidateOnly() { return get(KEY_VALIDATE_ONLY); }

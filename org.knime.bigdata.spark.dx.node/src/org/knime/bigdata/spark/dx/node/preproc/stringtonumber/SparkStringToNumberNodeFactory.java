@@ -17,16 +17,15 @@ public final class SparkStringToNumberNodeFactory
     implements SparkNodeFactory<SparkStringToNumberNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark String to Number(Hyim)")
+        .name("Spark String to Number(HYIM)")
         .icon("string_number.png")
         .shortDescription("Converts String columns to numeric types in a Spark DataFrame.")
-        .fullDescription("""
-            <p>Converts selected String columns in a Spark DataFrame to numeric types
-            (Integer, Double, or Long). Supports configurable decimal and thousands
-            separators, optional type suffix handling (d/D/f/F), and error handling.</p>
-            <p>Values that cannot be parsed are set to missing (null) by default.
-            Enable <b>Fail on error</b> to abort execution when conversion fails.</p>
-            """)
+        .fullDescription(
+            "<p>Converts selected String columns in a Spark DataFrame to numeric types\n"
+            + "(Integer, Double, or Long). Supports configurable decimal and thousands\n"
+            + "separators, optional type suffix handling (d/D/f/F), and error handling.</p>\n"
+            + "<p>Values that cannot be parsed are set to missing (null) by default.\n"
+            + "Enable <b>Fail on error</b> to abort execution when conversion fails.</p>")
         .modelSettingsClass(SparkStringToNumberNodeParameters.class)
         .addInputPort("Input Data", SparkDataPortObject.TYPE,
             "Spark DataFrame containing String columns to convert.")

@@ -63,7 +63,7 @@ public class SparkDateTimeShiftJobInput extends JobInput {
 
     /** @return the fixed shift amount */
     public int getShiftValue() {
-        return get(KEY_SHIFT_VALUE);
+        return getInteger(KEY_SHIFT_VALUE);
     }
 
     /** @return the column containing shift values */

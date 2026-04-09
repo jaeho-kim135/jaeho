@@ -9,9 +9,24 @@
             path="/toolintegration/spark">
       </category>
       <category
+            level-id="row"
+            name="Row"
+            path="/toolintegration/spark">
+      </category>
+      <category
+            level-id="convert"
+            name="Convert"
+            path="/toolintegration/spark">
+      </category>
+      <category
             level-id="extract"
             name="Extract"
-            path="/toolintegration/spark/column">
+            path="/toolintegration/spark">
+      </category>
+      <category
+            level-id="preproc"
+            name="Preprocessing"
+            path="/toolintegration/spark">
       </category>
    </extension>
    <extension

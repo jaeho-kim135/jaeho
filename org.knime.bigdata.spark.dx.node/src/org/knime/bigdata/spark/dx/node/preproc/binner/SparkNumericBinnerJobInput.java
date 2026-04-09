@@ -80,7 +80,7 @@ public class SparkNumericBinnerJobInput extends JobInput {
 
     /** @return number of bins for auto modes */
     public int getNumberOfBins() {
-        return get(NUMBER_OF_BINS);
+        return getInteger(NUMBER_OF_BINS);
     }
 
     /** @return bin naming convention */
