@@ -14,6 +14,7 @@ import org.knime.bigdata.spark.core.util.SparkIDs;
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.DoubleValue;
 import org.knime.core.data.def.IntCell;
 import org.knime.core.data.def.LongCell;
 import org.knime.core.node.ExecutionContext;
@@ -50,8 +51,15 @@ public class SparkRankNodeModel extends SparkNodeModel {
         final SparkDataPortObjectSpec sparkSpec = (SparkDataPortObjectSpec) inSpecs[0];
         final DataTableSpec tableSpec = sparkSpec.getTableSpec();
 
-        // Validate ranking columns
-        final String[] rankingColumns = m_settings.getRankingColumns();
+        // Validate ranking columns (auto-select default if not yet configured)
+        String[] rankingColumns = m_settings.getRankingColumns();
+        if ((rankingColumns == null || rankingColumns.length == 0) && !m_settings.isNodeConfigured()) {
+            final String defaultCol = findDefaultRankColumn(tableSpec);
+            if (defaultCol != null) {
+                rankingColumns = new String[]{defaultCol};
+                setWarningMessage("Auto-selected ranking column: " + defaultCol);
+            }
+        }
         if (rankingColumns == null || rankingColumns.length == 0) {
             throw new InvalidSettingsException("No ranking columns specified. "
                 + "Please add at least one ranking criterion.");
@@ -105,11 +113,11 @@ public class SparkRankNodeModel extends SparkNodeModel {
             outputCols.add(inputSpec.getColumnSpec(i));
         }
 
-        // Add rank column
+        // Add rank column with configured data type
         final String outputColName = m_settings.getOutputColName().trim();
-        final boolean useLong = "LONG".equals(m_settings.getRankDataType());
+        final boolean useInteger = "INTEGER".equals(m_settings.getRankDataType());
         outputCols.add(new DataColumnSpecCreator(outputColName,
-            useLong ? LongCell.TYPE : IntCell.TYPE).createSpec());
+            useInteger ? IntCell.TYPE : LongCell.TYPE).createSpec());
 
         return new DataTableSpec(outputCols.toArray(new DataColumnSpec[0]));
     }
@@ -123,10 +131,19 @@ public class SparkRankNodeModel extends SparkNodeModel {
 
         final List<String> groupColumns = m_settings.getGroupColumns();
 
+        // Auto-select default ranking column if not configured
+        String[] execRankingColumns = m_settings.getRankingColumns();
+        if ((execRankingColumns == null || execRankingColumns.length == 0) && !m_settings.isNodeConfigured()) {
+            final String defaultCol = findDefaultRankColumn(sparkPort.getTableSpec());
+            if (defaultCol != null) {
+                execRankingColumns = new String[]{defaultCol};
+            }
+        }
+
         final SparkRankJobInput jobInput = new SparkRankJobInput(
             inputObject,
             outputObject,
-            m_settings.getRankingColumns(),
+            execRankingColumns,
             m_settings.getRankingOrders(),
             groupColumns != null ? groupColumns.toArray(new String[0]) : new String[0],
             m_settings.getRankMode(),
@@ -144,6 +161,21 @@ public class SparkRankNodeModel extends SparkNodeModel {
             KNIMEToIntermediateConverterRegistry.convertSpec(jobOutput.getSpec(outputObject));
         final SparkDataTable resultTable = new SparkDataTable(contextID, outputObject, outputSpec);
         return new PortObject[]{new SparkDataPortObject(resultTable)};
+    }
+
+    /**
+     * Finds a default ranking column: first numeric column, or first column if none numeric.
+     */
+    private static String findDefaultRankColumn(final DataTableSpec spec) {
+        if (spec == null || spec.getNumColumns() == 0) {
+            return null;
+        }
+        for (int i = 0; i < spec.getNumColumns(); i++) {
+            if (spec.getColumnSpec(i).getType().isCompatible(DoubleValue.class)) {
+                return spec.getColumnSpec(i).getName();
+            }
+        }
+        return spec.getColumnSpec(0).getName();
     }
 
     @Override

@@ -12,6 +12,8 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
 
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListCellRenderer;
@@ -48,6 +50,7 @@ import org.knime.core.node.defaultnodesettings.SettingsModelFilterString;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.node.workflow.FlowVariable;
 
 /**
  * Dialog for the Spark Multi Query node.
@@ -724,14 +727,52 @@ public final class SparkMultiQueryNodeDialog extends DataAwareNodeDialogPane {
     }
 
     private SparkMultiQueryJobOutput runSparkValidation(final String[] cols, final String expr) throws Exception {
+        // Resolve $$varName tokens in expression to flow variable values
+        final String resolvedExpr = resolveFlowVarsInExpression(expr);
         final SparkMultiQueryJobInput jobInput = new SparkMultiQueryJobInput(
-            m_dataFrameID, cols, expr);
+            m_dataFrameID, cols, resolvedExpr);
 
-        return SparkContextUtil
-            .<SparkMultiQueryJobInput, SparkMultiQueryJobOutput>getJobRunFactory(
-                m_contextID, SparkMultiQueryNodeModel.JOB_ID)
-            .createRun(jobInput)
-            .run(m_contextID, new ExecutionMonitor());
+        final ClassLoader originalCL = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+            return SparkContextUtil
+                .<SparkMultiQueryJobInput, SparkMultiQueryJobOutput>getJobRunFactory(
+                    m_contextID, SparkMultiQueryNodeModel.JOB_ID)
+                .createRun(jobInput)
+                .run(m_contextID, new ExecutionMonitor());
+        } finally {
+            Thread.currentThread().setContextClassLoader(originalCL);
+        }
+    }
+
+    /**
+     * Resolves {@code $$varName} tokens in a SQL expression using available flow variables.
+     * STRING → single-quoted literal, INTEGER/DOUBLE → unquoted.
+     */
+    @SuppressWarnings("deprecation")
+    private String resolveFlowVarsInExpression(final String expr) {
+        if (!expr.contains("$$")) {
+            return expr;
+        }
+        final Map<String, FlowVariable> flowVars = getAvailableFlowVariables();
+        final Matcher m = SparkMultiQueryNodeModel.FLOW_VAR_PATTERN.matcher(expr);
+        final StringBuffer sb = new StringBuffer();
+        while (m.find()) {
+            final String varName = m.group(1);
+            final FlowVariable fv = flowVars.get(varName);
+            if (fv == null) {
+                continue; // leave unresolved
+            }
+            final String replacement;
+            switch (fv.getType()) {
+                case INTEGER: replacement = String.valueOf(fv.getIntValue()); break;
+                case DOUBLE:  replacement = String.valueOf(fv.getDoubleValue()); break;
+                default:      replacement = "'" + fv.getStringValue().replace("'", "''") + "'"; break;
+            }
+            m.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+        }
+        m.appendTail(sb);
+        return sb.toString();
     }
 
     private void showSuccess(final String message) {

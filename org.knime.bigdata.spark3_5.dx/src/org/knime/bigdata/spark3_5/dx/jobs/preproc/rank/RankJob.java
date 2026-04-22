@@ -87,8 +87,7 @@ public class RankJob implements SparkJob<SparkRankJobInput, SparkRankJobOutput> 
             indices.add(i);
         }
 
-        // Compute ranks per group
-        final boolean useLong = !"INTEGER".equals(rankDataType);
+        // Compute ranks per group (always use Long — Spark may coerce Integer to Long internally)
         final Number[] ranks = new Number[allRows.size()];
 
         for (final List<Integer> groupIndices : groups.values()) {
@@ -103,12 +102,13 @@ public class RankJob implements SparkJob<SparkRankJobInput, SparkRankJobOutput> 
             });
 
             // Assign ranks within sorted group
-            assignRanks(sorted, allRows, rankColIndices, rankMode, ranks, useLong);
+            assignRanks(sorted, allRows, rankColIndices, rankMode, ranks);
         }
 
         // Build result rows preserving original order
+        final boolean useInteger = "INTEGER".equals(rankDataType);
         final StructType resultSchema = schema.add(outputColName,
-            useLong ? DataTypes.LongType : DataTypes.IntegerType);
+            useInteger ? DataTypes.IntegerType : DataTypes.LongType);
 
         final List<Row> resultRows = new ArrayList<>(allRows.size());
         for (int i = 0; i < allRows.size(); i++) {
@@ -117,7 +117,7 @@ public class RankJob implements SparkJob<SparkRankJobInput, SparkRankJobOutput> 
             for (int j = 0; j < row.size(); j++) {
                 values[j] = row.get(j);
             }
-            values[row.size()] = ranks[i];
+            values[row.size()] = useInteger ? Integer.valueOf(ranks[i].intValue()) : ranks[i];
             resultRows.add(RowFactory.create(values));
         }
 
@@ -132,7 +132,7 @@ public class RankJob implements SparkJob<SparkRankJobInput, SparkRankJobOutput> 
 
     private void assignRanks(final List<Integer> sorted, final List<Row> allRows,
             final int[] rankColIndices, final String rankMode,
-            final Number[] ranks, final boolean useLong) {
+            final Number[] ranks) {
 
         for (int pos = 0; pos < sorted.size(); pos++) {
             final int rowIdx = sorted.get(pos);
@@ -158,7 +158,7 @@ public class RankJob implements SparkJob<SparkRankJobInput, SparkRankJobOutput> 
                 }
             }
 
-            ranks[rowIdx] = useLong ? Long.valueOf(rankValue) : Integer.valueOf(rankValue);
+            ranks[rowIdx] = Long.valueOf(rankValue);
         }
     }
 

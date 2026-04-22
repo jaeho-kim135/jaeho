@@ -251,7 +251,10 @@ class SparkLagColumnNodeParameters implements NodeParameters {
             final SparkContextID contextID = sparkPort.getContextID();
             final String inputObjectId = sparkPort.getData().getID();
 
+            final ClassLoader originalCL = Thread.currentThread().getContextClassLoader();
             try {
+                Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+
                 final Direction dir = m_directionSupplier.get();
                 final String dirStr = (dir == Direction.LEAD) ? SparkLagColumnSettings.DIR_LEAD
                                                               : SparkLagColumnSettings.DIR_LAG;
@@ -285,6 +288,8 @@ class SparkLagColumnNodeParameters implements NodeParameters {
                 return Optional.of(new TextMessage.Message(
                     "Validation failed: " + errMsg,
                     "", TextMessage.MessageType.ERROR));
+            } finally {
+                Thread.currentThread().setContextClassLoader(originalCL);
             }
         }
     }

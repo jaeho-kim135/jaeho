@@ -430,30 +430,37 @@ public final class SparkUnpivotNodeDialog extends DataAwareNodeDialogPane {
 
         m_rowEstimateLabel.setText("Estimated output: counting input rows...");
 
+        final ClassLoader dialogCL = getClass().getClassLoader();
         new SwingWorker<Long, Void>() {
             @Override
             protected Long doInBackground() throws Exception {
-                // Run a minimal validate-only job just to get the count
-                // Need at least 2 columns: one for retained, one for value
-                if (m_tableSpec.getNumColumns() < 2) {
-                    return -1L;
+                final ClassLoader originalCL = Thread.currentThread().getContextClassLoader();
+                try {
+                    Thread.currentThread().setContextClassLoader(dialogCL);
+                    // Run a minimal validate-only job just to get the count
+                    // Need at least 2 columns: one for retained, one for value
+                    if (m_tableSpec.getNumColumns() < 2) {
+                        return -1L;
+                    }
+                    final String[] minRetained = new String[]{m_tableSpec.getColumnSpec(0).getName()};
+                    final String[] minValue = new String[]{m_tableSpec.getColumnSpec(1).getName()};
+                    final SparkUnpivotJobInput jobInput = new SparkUnpivotJobInput(
+                        m_dataFrameID,
+                        minRetained,
+                        minValue,
+                        "_var_tmp_", "_val_tmp_",
+                        false, false,
+                        SparkUnpivotSettings.SORT_NONE,
+                        new String[0], new String[0]);
+                    final SparkUnpivotJobOutput output = SparkContextUtil
+                        .<SparkUnpivotJobInput, SparkUnpivotJobOutput>getJobRunFactory(
+                            m_contextID, SparkUnpivotNodeModel.JOB_ID)
+                        .createRun(jobInput)
+                        .run(m_contextID, new ExecutionMonitor());
+                    return output.getInputRowCount();
+                } finally {
+                    Thread.currentThread().setContextClassLoader(originalCL);
                 }
-                final String[] minRetained = new String[]{m_tableSpec.getColumnSpec(0).getName()};
-                final String[] minValue = new String[]{m_tableSpec.getColumnSpec(1).getName()};
-                final SparkUnpivotJobInput jobInput = new SparkUnpivotJobInput(
-                    m_dataFrameID,
-                    minRetained,
-                    minValue,
-                    "_var_tmp_", "_val_tmp_",
-                    false, false,
-                    SparkUnpivotSettings.SORT_NONE,
-                    new String[0], new String[0]);
-                final SparkUnpivotJobOutput output = SparkContextUtil
-                    .<SparkUnpivotJobInput, SparkUnpivotJobOutput>getJobRunFactory(
-                        m_contextID, SparkUnpivotNodeModel.JOB_ID)
-                    .createRun(jobInput)
-                    .run(m_contextID, new ExecutionMonitor());
-                return output.getInputRowCount();
             }
 
             @Override
@@ -630,14 +637,21 @@ public final class SparkUnpivotNodeDialog extends DataAwareNodeDialogPane {
             mapKeys,
             mapValues);
 
+        final ClassLoader checkCL = getClass().getClassLoader();
         new SwingWorker<SparkUnpivotJobOutput, Void>() {
             @Override
             protected SparkUnpivotJobOutput doInBackground() throws Exception {
-                return SparkContextUtil
-                    .<SparkUnpivotJobInput, SparkUnpivotJobOutput>getJobRunFactory(
-                        m_contextID, SparkUnpivotNodeModel.JOB_ID)
-                    .createRun(jobInput)
-                    .run(m_contextID, new ExecutionMonitor());
+                final ClassLoader originalCL = Thread.currentThread().getContextClassLoader();
+                try {
+                    Thread.currentThread().setContextClassLoader(checkCL);
+                    return SparkContextUtil
+                        .<SparkUnpivotJobInput, SparkUnpivotJobOutput>getJobRunFactory(
+                            m_contextID, SparkUnpivotNodeModel.JOB_ID)
+                        .createRun(jobInput)
+                        .run(m_contextID, new ExecutionMonitor());
+                } finally {
+                    Thread.currentThread().setContextClassLoader(originalCL);
+                }
             }
 
             @Override

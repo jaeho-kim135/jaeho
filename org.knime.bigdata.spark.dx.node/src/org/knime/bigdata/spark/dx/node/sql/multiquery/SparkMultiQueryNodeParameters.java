@@ -1,11 +1,9 @@
 package org.knime.bigdata.spark.dx.node.sql.multiquery;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.context.SparkContextID;
 import org.knime.bigdata.spark.core.context.SparkContextUtil;
@@ -316,20 +314,27 @@ class SparkMultiQueryNodeParameters implements NodeParameters {
     interface KeepOriginalRef       extends ParameterReference<Boolean> {}
     interface OutputPatternRef      extends ParameterReference<String> {}
     interface FlowVarSelectorRef    extends ParameterReference<String> {}
-
     interface CheckButtonRef        extends ButtonReference {}
     interface InsertFlowVarButtonRef extends ButtonReference {}
 
     // ── COLUMN CHOICES PROVIDER ───────────────────────────────────────────────
 
+    /**
+     * Provides input DataFrame columns as column choices for the target column filter.
+     */
     static final class SparkColumnChoicesProvider implements ColumnChoicesProvider {
         @Override
         public List<DataColumnSpec> columnChoices(final NodeParametersInput context) {
-            return context.getInPortSpec(0)
+            final List<DataColumnSpec> result = new ArrayList<>();
+
+            // DataFrame columns from input port (flow variables are NOT included here —
+            // they are inserted via the Flow Variable combobox in the Expression section)
+            context.getInPortSpec(0)
                 .filter(spec -> spec instanceof SparkDataPortObjectSpec)
                 .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec())
-                .map(tableSpec -> tableSpec.stream().collect(Collectors.toList()))
-                .orElse(Collections.<DataColumnSpec>emptyList());
+                .ifPresent(tableSpec -> tableSpec.forEach(result::add));
+
+            return result;
         }
     }
 
@@ -340,7 +345,7 @@ class SparkMultiQueryNodeParameters implements NodeParameters {
             return ((NodeParametersInputImpl) context)
                 .getAvailableInputFlowVariables(
                     VariableTypeRegistry.getInstance().getAllTypes())
-                .values().stream().collect(Collectors.toList());
+                .values().stream().collect(java.util.stream.Collectors.toList());
         }
     }
 
@@ -399,18 +404,32 @@ class SparkMultiQueryNodeParameters implements NodeParameters {
     // ── STATE PROVIDERS ───────────────────────────────────────────────────────
 
     /**
-     * Updates the SQL expression field:
-     * - When a non-CUSTOM template is selected → replaces SQL with template SQL.
-     * - When the Insert button is clicked AND template is (Custom) → appends $$varName.
-     *
-     * Note: if template is non-CUSTOM, it takes priority over the Insert button.
-     * Switch to (Custom) before inserting flow variables.
+     * Updates the SQL expression field. Two independent triggers:
+     * <ol>
+     *   <li>{@code computeFromValueSupplier(TemplateRef)} — template dropdown changed.</li>
+     *   <li>{@code computeOnButtonClick(InsertFlowVarButtonRef)} — Insert button clicked.</li>
+     * </ol>
+     * <b>Template change</b> is detected via {@code m_lastSeenTemplate}. When the provider
+     * instance is freshly created ({@code m_lastSeenTemplate == null}), a content-based
+     * heuristic ({@code startsWith}) is used so that button clicks with a non-CUSTOM template
+     * don't accidentally re-apply the template.
+     * <p>
+     * {@code m_templateJustApplied} prevents the framework's reactive convergence loop
+     * (triggered by {@code getValueSupplier(SqlExpressionRef)}) from appending a stale
+     * flow variable right after a template was applied.
+     * <p>
+     * The {@code endsWith} check makes flow variable appending idempotent so the convergence
+     * loop terminates.
      */
     static final class SqlExpressionValueProvider implements StateProvider<String> {
 
         private Supplier<ExpressionTemplate> m_templateSupplier;
         private Supplier<String>             m_flowVarSupplier;
         private Supplier<String>             m_currentSqlSupplier;
+        /** Tracks the last template value; {@code null} means the instance was just created. */
+        private ExpressionTemplate           m_lastSeenTemplate;
+        /** Set after a template is applied to suppress flow var on the next convergence re-fire. */
+        private boolean                      m_templateJustApplied;
 
         @Override
         public void init(final StateProviderInitializer initializer) {
@@ -425,16 +444,45 @@ class SparkMultiQueryNodeParameters implements NodeParameters {
             final ExpressionTemplate t = m_templateSupplier.get();
             final String flowVar = m_flowVarSupplier.get();
             String currentSql = m_currentSqlSupplier.get();
-            if (currentSql == null) currentSql = "";
-
-            // Non-CUSTOM template always takes priority
-            if (t != null && t != ExpressionTemplate.CUSTOM) {
-                return t.getSql();
+            if (currentSql == null) {
+                currentSql = "";
             }
 
-            // CUSTOM + non-empty flow variable: Insert button was clicked
+            // ── Detect whether the template genuinely changed ──
+            final boolean templateChanged;
+            if (m_lastSeenTemplate == null) {
+                // Fresh instance — heuristic: a non-CUSTOM template whose SQL
+                // isn't already at the start of the field must be a genuine change.
+                templateChanged = t != null
+                    && t != ExpressionTemplate.CUSTOM
+                    && !currentSql.startsWith(t.getSql());
+            } else {
+                templateChanged = (t != m_lastSeenTemplate);
+            }
+            m_lastSeenTemplate = t;
+
+            // ── 1. Template changed ──
+            if (templateChanged) {
+                m_templateJustApplied = true;
+                if (t != null && t != ExpressionTemplate.CUSTOM) {
+                    return t.getSql();
+                }
+                // (Custom) selected → clear SQL
+                return "";
+            }
+
+            // Suppress stale flow var on the convergence re-fire after a template change
+            if (m_templateJustApplied) {
+                m_templateJustApplied = false;
+                return currentSql;
+            }
+
+            // ── 2. Button click → append $$varName ──
             if (flowVar != null && !flowVar.trim().isEmpty()) {
-                return currentSql + "$$" + flowVar.trim();
+                final String token = "$$" + flowVar.trim();
+                if (!currentSql.endsWith(token)) {
+                    return currentSql + token;
+                }
             }
 
             return currentSql;
@@ -540,8 +588,8 @@ class SparkMultiQueryNodeParameters implements NodeParameters {
                     "", TextMessage.MessageType.INFO));
             }
 
-            final String[] cols = getManuallySelected(m_colSupplier.get());
-            if (cols.length == 0) {
+            final String[] rawCols = getManuallySelected(m_colSupplier.get());
+            if (rawCols.length == 0) {
                 return Optional.of(new TextMessage.Message(
                     "Select at least one target column to run validation.",
                     "", TextMessage.MessageType.WARNING));
@@ -555,13 +603,28 @@ class SparkMultiQueryNodeParameters implements NodeParameters {
                     "", TextMessage.MessageType.WARNING));
             }
 
+            // Filter out $$flow-variable references (they are for expression substitution, not targets)
+            final List<String> regularCols = new ArrayList<>();
+            for (final String col : rawCols) {
+                if (!col.startsWith("$$")) {
+                    regularCols.add(col);
+                }
+            }
+            final String[] cols = regularCols.toArray(new String[0]);
+
+            // Resolve $$varName tokens in the expression to flow variable values
+            final String resolvedExpr = resolveFlowVarsInExpression(expr, context);
+
             final SparkDataPortObject sparkPort = (SparkDataPortObject) portObjOpt.get();
             final SparkContextID contextID = sparkPort.getContextID();
             final String inputObjectId = sparkPort.getData().getID();
 
+            final ClassLoader originalCL = Thread.currentThread().getContextClassLoader();
             try {
+                Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+
                 final SparkMultiQueryJobInput jobInput =
-                    new SparkMultiQueryJobInput(inputObjectId, cols, expr);
+                    new SparkMultiQueryJobInput(inputObjectId, cols, resolvedExpr);
                 SparkContextUtil
                     .<SparkMultiQueryJobInput, SparkMultiQueryJobOutput>getJobRunFactory(
                         contextID, SparkMultiQueryNodeModel.JOB_ID)
@@ -582,7 +645,7 @@ class SparkMultiQueryNodeParameters implements NodeParameters {
                 for (final String col : cols) {
                     try {
                         final SparkMultiQueryJobInput ji =
-                            new SparkMultiQueryJobInput(inputObjectId, new String[]{col}, expr);
+                            new SparkMultiQueryJobInput(inputObjectId, new String[]{col}, resolvedExpr);
                         SparkContextUtil
                             .<SparkMultiQueryJobInput, SparkMultiQueryJobOutput>getJobRunFactory(
                                 contextID, SparkMultiQueryNodeModel.JOB_ID)
@@ -599,6 +662,8 @@ class SparkMultiQueryNodeParameters implements NodeParameters {
                 if (lastError != null) msg.append("\n\nError: ").append(lastError);
                 return Optional.of(new TextMessage.Message(
                     msg.toString(), "", TextMessage.MessageType.ERROR));
+            } finally {
+                Thread.currentThread().setContextClassLoader(originalCL);
             }
         }
     }
@@ -608,7 +673,7 @@ class SparkMultiQueryNodeParameters implements NodeParameters {
     // ── Column Selection ──────────────────────────────────────────────────────
     @Layout(DialogSections.ColumnSelectionSection.class)
     @Widget(title = "Target Columns",
-        description = "Columns to apply the SQL expression to.")
+        description = "Select columns to apply the SQL expression to.")
     @ColumnFilterWidget(choicesProvider = SparkColumnChoicesProvider.class)
     @ValueReference(TargetColumnsRef.class)
     @Persistor(TargetColumnsPersistor.class)
@@ -618,8 +683,7 @@ class SparkMultiQueryNodeParameters implements NodeParameters {
 
     @Layout(DialogSections.ExpressionSection.class)
     @Widget(title = "Expression Template",
-        description = "Select a preset template to automatically fill the SQL expression field. "
-            + "Selecting a non-custom entry replaces the current expression.")
+        description = "Select a preset template to replace the SQL expression field.")
     @Persistor(EphemeralTemplatePersistor.class)
     @ValueReference(TemplateRef.class)
     ExpressionTemplate m_expressionTemplate = ExpressionTemplate.CUSTOM;
@@ -629,10 +693,8 @@ class SparkMultiQueryNodeParameters implements NodeParameters {
         description = "SQL expression applied to each target column.\n\n"
             + SparkMultiQuerySettings.COLUMN_PLACEHOLDER
             + " \u2014 placeholder replaced with each target column name.\n\n"
-            + "$$variableName \u2014 replaced at execution with the flow variable value. "
-            + "STRING variables are automatically single-quoted; INTEGER/DOUBLE are unquoted.\n"
-            + "Example: COALESCE(" + SparkMultiQuerySettings.COLUMN_PLACEHOLDER + ", $$defaultValue)\n\n"
-            + "To insert a flow variable: select from the dropdown below and click Insert.")
+            + "Use $$varName to reference flow variable values in the expression.\n"
+            + "STRING variables are quoted as SQL literals, INTEGER/DOUBLE are unquoted.")
     @Persist(configKey = SparkMultiQuerySettings.CFG_SQL_EXPRESSION)
     @ValueReference(SqlExpressionRef.class)
     @ValueProvider(SqlExpressionValueProvider.class)
@@ -640,10 +702,8 @@ class SparkMultiQueryNodeParameters implements NodeParameters {
 
     @Layout(DialogSections.ExpressionSection.class)
     @Widget(title = "Flow Variable",
-        description = "Select a flow variable and click Insert to append $$varName "
-            + "at the end of the SQL expression.\n"
-            + "STRING variables are single-quoted at execution; INTEGER/DOUBLE are numeric literals.\n"
-            + "Note: the Template must be set to '(Custom)' for Insert to take effect.")
+        description = "Select a flow variable and click Insert to append $$varName at the end of the SQL expression.\n"
+            + "STRING variables are single-quoted at execution; INTEGER/DOUBLE are numeric literals.")
     @ChoicesProvider(AllFlowVarsProvider.class)
     @Persistor(EphemeralStringPersistor.class)
     @ValueReference(FlowVarSelectorRef.class)
@@ -684,8 +744,7 @@ class SparkMultiQueryNodeParameters implements NodeParameters {
     @Layout(DialogSections.ValidationSection.class)
     @Widget(title = "Run Validation",
         description = "Run a test query (LIMIT 5) to verify the expression against the upstream data. "
-            + "Note: $$varName tokens are NOT substituted during dialog validation "
-            + "(substitution happens at node execution).")
+            + "$$varName tokens in the expression are resolved to their values during validation.")
     @SimpleButtonWidget(ref = CheckButtonRef.class, icon = Icon.RELOAD)
     Void m_checkButton;
 
@@ -705,5 +764,42 @@ class SparkMultiQueryNodeParameters implements NodeParameters {
         final ManualFilter mf = filter.m_manualFilter;
         if (mf == null || mf.m_manuallySelected == null) return new String[0];
         return mf.m_manuallySelected;
+    }
+
+    /**
+     * Resolves {@code $$varName} tokens in a SQL expression using flow variables from the context.
+     * STRING → single-quoted literal, INTEGER/DOUBLE → unquoted.
+     */
+    @SuppressWarnings("deprecation")
+    static String resolveFlowVarsInExpression(final String expr, final NodeParametersInput context) {
+        if (!expr.contains("$$")) {
+            return expr;
+        }
+        java.util.Map<String, FlowVariable> flowVars;
+        try {
+            flowVars = ((NodeParametersInputImpl) context)
+                .getAvailableInputFlowVariables(
+                    VariableTypeRegistry.getInstance().getAllTypes());
+        } catch (final Exception e) {
+            return expr;
+        }
+        final java.util.regex.Matcher m = SparkMultiQueryNodeModel.FLOW_VAR_PATTERN.matcher(expr);
+        final StringBuffer sb = new StringBuffer();
+        while (m.find()) {
+            final String varName = m.group(1);
+            final FlowVariable fv = flowVars.get(varName);
+            if (fv == null) {
+                continue; // leave unresolved
+            }
+            final String replacement;
+            switch (fv.getType()) {
+                case INTEGER: replacement = String.valueOf(fv.getIntValue()); break;
+                case DOUBLE:  replacement = String.valueOf(fv.getDoubleValue()); break;
+                default:      replacement = "'" + fv.getStringValue().replace("'", "''") + "'"; break;
+            }
+            m.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(replacement));
+        }
+        m.appendTail(sb);
+        return sb.toString();
     }
 }

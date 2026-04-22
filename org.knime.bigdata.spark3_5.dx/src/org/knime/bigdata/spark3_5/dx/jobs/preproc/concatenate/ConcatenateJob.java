@@ -64,6 +64,9 @@ public class ConcatenateJob
         final Set<String> leftColNames = new HashSet<>(Arrays.asList(leftSchema.fieldNames()));
         final Set<String> rightColNames = new HashSet<>(Arrays.asList(rightSchema.fieldNames()));
 
+        final String unmatchedLeftAction = input.getUnmatchedLeftAction();
+        final String unmatchedRightAction = input.getUnmatchedRightAction();
+
         // 2. Build output schema — follow mapping array order (= config table order)
         final List<StructField> outputFields = new ArrayList<>();
         final Set<String> usedOutputNames = new LinkedHashSet<>();
@@ -72,15 +75,14 @@ public class ConcatenateJob
         final List<String> colLeftSrc = new ArrayList<>();  // source left column name
         final List<String> colRightSrc = new ArrayList<>(); // source right column name
 
+        // 2a. Process explicit mapping rows
         for (int i = 0; i < leftArr.length; i++) {
             final String left = leftArr[i];
             final String right = (i < rightArr.length) ? rightArr[i] : "";
-            // Check both non-empty AND actually exists in the Spark schema
             final boolean hasLeft = left != null && !left.isEmpty() && leftColNames.contains(left);
             final boolean hasRight = right != null && !right.isEmpty() && rightColNames.contains(right);
 
             if (hasLeft && hasRight) {
-                // Mapped pair — resolve type, handle duplicate output names
                 final String outputName = makeUnique(left, usedOutputNames);
                 final DataType leftType = leftSchema.apply(left).dataType();
                 final DataType rightType = rightSchema.apply(right).dataType();
@@ -91,26 +93,27 @@ public class ConcatenateJob
                 colLeftSrc.add(left);
                 colRightSrc.add(right);
             } else if (hasLeft) {
-                if ("FILL_NULL".equals(input.getUnmatchedLeftAction())) {
-                    final String outputName = makeUnique(left, usedOutputNames);
-                    outputFields.add(DataTypes.createStructField(
-                        outputName, leftSchema.apply(left).dataType(),
-                        leftSchema.apply(left).nullable()));
-                    usedOutputNames.add(outputName);
-                    colTypes.add('L');
-                    colLeftSrc.add(left);
-                    colRightSrc.add("");
+                if ("EXCLUDE".equals(unmatchedLeftAction)) {
+                    continue; // Skip unmatched left column
                 }
+                final String outputName = makeUnique(left, usedOutputNames);
+                outputFields.add(DataTypes.createStructField(
+                    outputName, leftSchema.apply(left).dataType(), true));
+                usedOutputNames.add(outputName);
+                colTypes.add('L');
+                colLeftSrc.add(left);
+                colRightSrc.add("");
             } else if (hasRight) {
-                if ("FILL_NULL".equals(input.getUnmatchedRightAction())) {
-                    final String outputName = makeUnique(right, usedOutputNames);
-                    outputFields.add(DataTypes.createStructField(
-                        outputName, rightSchema.apply(right).dataType(), true));
-                    usedOutputNames.add(outputName);
-                    colTypes.add('R');
-                    colLeftSrc.add("");
-                    colRightSrc.add(right);
+                if ("EXCLUDE".equals(unmatchedRightAction)) {
+                    continue; // Skip unmatched right column
                 }
+                final String outputName = makeUnique(right, usedOutputNames);
+                outputFields.add(DataTypes.createStructField(
+                    outputName, rightSchema.apply(right).dataType(), true));
+                usedOutputNames.add(outputName);
+                colTypes.add('R');
+                colLeftSrc.add("");
+                colRightSrc.add(right);
             }
         }
 

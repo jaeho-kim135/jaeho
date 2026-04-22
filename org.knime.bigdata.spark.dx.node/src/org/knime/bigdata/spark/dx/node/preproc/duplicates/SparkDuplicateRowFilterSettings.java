@@ -28,6 +28,7 @@ public final class SparkDuplicateRowFilterSettings {
     static final String CFG_ORDER_DIRECTION = "orderDirection";
     static final String CFG_ADD_STATUS_COLUMN = "addStatusColumn";
     static final String CFG_STATUS_COLUMN_NAME = "statusColumnName";
+    static final String CFG_USE_ORDER_COLUMN = "useOrderColumn";
     static final String CFG_CONFIGURED = "nodeConfigured";
 
     /** Key used by NameFilterConfiguration for the filter type. */
@@ -60,6 +61,9 @@ public final class SparkDuplicateRowFilterSettings {
 
     private final SettingsModelBoolean m_addStatusColumn =
         new SettingsModelBoolean(CFG_ADD_STATUS_COLUMN, false);
+
+    private final SettingsModelBoolean m_useOrderColumn =
+        new SettingsModelBoolean(CFG_USE_ORDER_COLUMN, false);
 
     private final SettingsModelString m_statusColumnName =
         new SettingsModelString(CFG_STATUS_COLUMN_NAME, "Duplicate Status");
@@ -99,6 +103,11 @@ public final class SparkDuplicateRowFilterSettings {
         return m_orderDirection.getStringValue();
     }
 
+    /** @return whether to use order column for duplicate group ordering */
+    public boolean isUseOrderColumn() {
+        return m_useOrderColumn.getBooleanValue();
+    }
+
     /** @return whether to add a status column */
     public boolean isAddStatusColumn() {
         return m_addStatusColumn.getBooleanValue();
@@ -130,6 +139,7 @@ public final class SparkDuplicateRowFilterSettings {
         m_rowSelection.saveSettingsTo(settings);
         m_orderColumn.saveSettingsTo(settings);
         m_orderDirection.saveSettingsTo(settings);
+        m_useOrderColumn.saveSettingsTo(settings);
         m_addStatusColumn.saveSettingsTo(settings);
         m_statusColumnName.saveSettingsTo(settings);
         if (m_nodeConfigured) {
@@ -146,6 +156,10 @@ public final class SparkDuplicateRowFilterSettings {
         m_rowSelection.validateSettings(settings);
         m_orderColumn.validateSettings(settings);
         m_orderDirection.validateSettings(settings);
+        // Optional: useOrderColumn may not be present in old workflows
+        if (settings.containsKey(CFG_USE_ORDER_COLUMN)) {
+            m_useOrderColumn.validateSettings(settings);
+        }
         // Optional: addStatusColumn/statusColumnName may not be present in new workflows
         if (settings.containsKey(CFG_ADD_STATUS_COLUMN)) {
             m_addStatusColumn.validateSettings(settings);
@@ -164,6 +178,14 @@ public final class SparkDuplicateRowFilterSettings {
         m_rowSelection.loadSettingsFrom(settings);
         m_orderColumn.loadSettingsFrom(settings);
         m_orderDirection.loadSettingsFrom(settings);
+        // Optional: useOrderColumn may not be present in old workflows
+        if (settings.containsKey(CFG_USE_ORDER_COLUMN)) {
+            m_useOrderColumn.loadSettingsFrom(settings);
+        } else {
+            // Backward compat: if order column was configured, assume useOrderColumn=true
+            final String oc = m_orderColumn.getStringValue();
+            m_useOrderColumn.setBooleanValue(oc != null && !oc.isEmpty());
+        }
         // Optional: addStatusColumn/statusColumnName may not be present in new workflows
         if (settings.containsKey(CFG_ADD_STATUS_COLUMN)) {
             m_addStatusColumn.loadSettingsFrom(settings);

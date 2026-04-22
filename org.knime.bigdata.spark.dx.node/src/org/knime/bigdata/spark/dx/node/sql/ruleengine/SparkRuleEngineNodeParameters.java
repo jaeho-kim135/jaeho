@@ -191,22 +191,34 @@ class SparkRuleEngineNodeParameters implements NodeParameters {
                     ruleLines, defaultValue, defaultIsMissing,
                     isReplace, outputColumn);
 
-                SparkRuleEngineJobOutput output = SparkContextUtil
-                    .<SparkRuleEngineJobInput, SparkRuleEngineJobOutput>getJobRunFactory(
-                        contextID, SparkRuleEngineNodeModel.JOB_ID)
-                    .createRun(jobInput)
-                    .run(contextID);
+                final ClassLoader originalCL = Thread.currentThread().getContextClassLoader();
+                try {
+                    Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
 
-                String preview = output.getPreviewData();
-                if (preview != null && !preview.isEmpty()) {
+                    SparkRuleEngineJobOutput output = SparkContextUtil
+                        .<SparkRuleEngineJobInput, SparkRuleEngineJobOutput>getJobRunFactory(
+                            contextID, SparkRuleEngineNodeModel.JOB_ID)
+                        .createRun(jobInput)
+                        .run(contextID);
+
+                    String preview = output.getPreviewData();
+                    if (preview != null && !preview.isEmpty()) {
+                        return Optional.of(new TextMessage.Message(
+                            "Validation succeeded.\n" + preview,
+                            "", TextMessage.MessageType.SUCCESS));
+                    }
+
                     return Optional.of(new TextMessage.Message(
-                        "Validation succeeded.\n" + preview,
-                        "", TextMessage.MessageType.SUCCESS));
+                        "Validation succeeded.", "", TextMessage.MessageType.SUCCESS));
+
+                } catch (Exception e) {
+                    String errMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                    return Optional.of(new TextMessage.Message(
+                        "Validation failed: " + errMsg,
+                        "", TextMessage.MessageType.ERROR));
+                } finally {
+                    Thread.currentThread().setContextClassLoader(originalCL);
                 }
-
-                return Optional.of(new TextMessage.Message(
-                    "Validation succeeded.", "", TextMessage.MessageType.SUCCESS));
-
             } catch (Exception e) {
                 String errMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
                 return Optional.of(new TextMessage.Message(

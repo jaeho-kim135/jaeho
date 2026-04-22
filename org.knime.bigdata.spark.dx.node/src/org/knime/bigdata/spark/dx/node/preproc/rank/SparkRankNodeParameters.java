@@ -2,10 +2,14 @@ package org.knime.bigdata.spark.dx.node.preproc.rank;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.knime.bigdata.spark.core.port.data.SparkDataPortObjectSpec;
 import org.knime.core.data.DataColumnSpec;
+import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.DoubleValue;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
 import org.knime.core.node.NodeSettingsRO;
@@ -21,6 +25,10 @@ import org.knime.node.parameters.persistence.NodeParametersPersistor;
 import org.knime.node.parameters.persistence.Persist;
 import org.knime.node.parameters.persistence.Persistor;
 import org.knime.node.parameters.persistence.legacy.LegacyColumnFilterPersistor;
+import org.knime.node.parameters.updates.ParameterReference;
+import org.knime.node.parameters.updates.StateProvider;
+import org.knime.node.parameters.updates.ValueProvider;
+import org.knime.node.parameters.updates.ValueReference;
 import org.knime.node.parameters.widget.choices.ChoicesProvider;
 import org.knime.node.parameters.widget.choices.ColumnChoicesProvider;
 import org.knime.node.parameters.widget.choices.Label;
@@ -83,6 +91,10 @@ class SparkRankNodeParameters implements NodeParameters {
         INTEGER;
     }
 
+    // ── PARAMETER REFERENCES ──────────────────────────────────────────────────
+
+    interface RankingCriteriaRef extends ParameterReference<RankCriterion[]> {}
+
     // ── COLUMN CHOICES PROVIDER ──────────────────────────────────────────────
 
     static final class SparkColumnChoicesProvider implements ColumnChoicesProvider {
@@ -118,6 +130,69 @@ class SparkRankNodeParameters implements NodeParameters {
         RankCriterion(final String column, final SortOrder order) {
             m_column = column;
             m_order = order;
+        }
+    }
+
+    // ── DEFAULT CRITERIA PROVIDER ─────────────────────────────────────────────
+
+    /**
+     * Auto-selects a default ranking column when the dialog opens and no column
+     * has been configured yet. Picks the first numeric column, or the first
+     * column if none is numeric.
+     */
+    static final class DefaultRankingCriteriaProvider implements StateProvider<RankCriterion[]> {
+
+        private Supplier<RankCriterion[]> m_currentSupplier;
+
+        @Override
+        public void init(final StateProviderInitializer initializer) {
+            initializer.computeAfterOpenDialog();
+            m_currentSupplier = initializer.getValueSupplier(RankingCriteriaRef.class);
+        }
+
+        @Override
+        public RankCriterion[] computeState(final NodeParametersInput context) {
+            final RankCriterion[] current = m_currentSupplier.get();
+
+            // Only auto-fill if all criteria have empty columns (unconfigured)
+            if (current != null) {
+                for (final RankCriterion c : current) {
+                    if (c.m_column != null && !c.m_column.isEmpty()) {
+                        return current;
+                    }
+                }
+            }
+
+            // Find default column from input spec
+            final Optional<DataTableSpec> specOpt = context.getInPortSpec(0)
+                .filter(spec -> spec instanceof SparkDataPortObjectSpec)
+                .map(spec -> ((SparkDataPortObjectSpec) spec).getTableSpec());
+
+            if (!specOpt.isPresent()) {
+                return current;
+            }
+
+            final DataTableSpec tableSpec = specOpt.get();
+            String defaultCol = null;
+
+            // First numeric column
+            for (int i = 0; i < tableSpec.getNumColumns(); i++) {
+                if (tableSpec.getColumnSpec(i).getType().isCompatible(DoubleValue.class)) {
+                    defaultCol = tableSpec.getColumnSpec(i).getName();
+                    break;
+                }
+            }
+
+            // Fallback to first column
+            if (defaultCol == null && tableSpec.getNumColumns() > 0) {
+                defaultCol = tableSpec.getColumnSpec(0).getName();
+            }
+
+            if (defaultCol != null) {
+                return new RankCriterion[]{new RankCriterion(defaultCol, SortOrder.ASCENDING)};
+            }
+
+            return current;
         }
     }
 
@@ -283,6 +358,8 @@ class SparkRankNodeParameters implements NodeParameters {
             + "additional criteria are only considered in the event of a tie.")
     @ArrayWidget(elementTitle = "Criterion", addButtonText = "Add ranking criterion", showSortButtons = true)
     @Persistor(RankCriteriaPersistor.class)
+    @ValueReference(RankingCriteriaRef.class)
+    @ValueProvider(DefaultRankingCriteriaProvider.class)
     RankCriterion[] m_rankingCriteria = new RankCriterion[]{new RankCriterion()};
 
     // ── Group Columns ────────────────────────────────────────────────────────

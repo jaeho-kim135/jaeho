@@ -280,7 +280,10 @@ class SparkUnpivotNodeParameters implements NodeParameters {
             SparkContextID contextID = sparkPort.getContextID();
             String inputObjectId = sparkPort.getData().getID();
 
+            final ClassLoader originalCL = Thread.currentThread().getContextClassLoader();
             try {
+                Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+
                 String[] retainedCols = getManuallySelected(m_retainedSupplier.get());
                 String varColName = orDefault(m_varColNameSupplier.get(), "variable");
                 String valColName = orDefault(m_valColNameSupplier.get(), "value");
@@ -312,6 +315,8 @@ class SparkUnpivotNodeParameters implements NodeParameters {
                 return Optional.of(new TextMessage.Message(
                     "Validation failed: " + errMsg,
                     "", TextMessage.MessageType.ERROR));
+            } finally {
+                Thread.currentThread().setContextClassLoader(originalCL);
             }
         }
 

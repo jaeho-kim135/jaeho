@@ -270,30 +270,12 @@ export default {
         if (s.unmatchedRightAction) unmatchedRight.value = s.unmatchedRightAction
 
         if (isConfigured && s.leftColumns?.length) {
-          // Build a map of saved mappings: leftCol → rightCol
-          const savedMap = new Map()
+          // Restore saved mappings in exact saved order
           for (let i = 0; i < s.leftColumns.length; i++) {
-            savedMap.set(s.leftColumns[i], (s.rightColumns && s.rightColumns[i]) || '')
-          }
-          // Show ALL left columns in original order, with saved right mappings applied
-          const usedRight = new Set()
-          for (const lc of leftCols.value) {
-            const r = savedMap.has(lc.name) ? savedMap.get(lc.name) : ''
-            mappings.push({ left: lc.name, right: r })
-            if (r) usedRight.add(r)
-          }
-          // Include any saved left columns not in current left spec (edge case)
-          for (const [leftName, rightName] of savedMap) {
-            if (!leftCols.value.some(c => c.name === leftName)) {
-              mappings.push({ left: leftName, right: rightName })
-              if (rightName) usedRight.add(rightName)
-            }
-          }
-          // Append unmatched right columns (left empty)
-          for (const rc of rightCols.value) {
-            if (!usedRight.has(rc.name)) {
-              mappings.push({ left: '', right: rc.name })
-            }
+            mappings.push({
+              left: s.leftColumns[i] || '',
+              right: (s.rightColumns && s.rightColumns[i]) || ''
+            })
           }
         }
       }
@@ -301,17 +283,6 @@ export default {
       // If no mappings loaded and node was never configured, auto-map
       if (mappings.length === 0 && !isConfigured && leftCols.value.length > 0 && rightCols.value.length > 0) {
         autoMap()
-      } else if (mappings.length === 0 && leftCols.value.length > 0) {
-        // Node was configured but with no mappings - still show all columns
-        for (const lc of leftCols.value) {
-          mappings.push({ left: lc.name, right: '' })
-        }
-        const leftNames = new Set(leftCols.value.map(c => c.name))
-        for (const rc of rightCols.value) {
-          if (!leftNames.has(rc.name)) {
-            mappings.push({ left: '', right: rc.name })
-          }
-        }
       }
 
       // Register for dirty-state tracking

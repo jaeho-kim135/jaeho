@@ -71,7 +71,7 @@ public class DuplicateRowFilterJob
         if ("KEEP".equals(duplicateHandling)) {
             if (addStatusColumn) {
                 final boolean keepMin = calculateKeepMin(rowSelection, orderDirection);
-                resultRows = processKeepWithStatus(allRows, dupColIndices, orderColIdx, keepMin);
+                resultRows = processKeepWithStatus(allRows, dupColIndices, orderColIdx, keepMin, rowSelection);
                 resultSchema = schema.add(statusColumnName, DataTypes.StringType);
             } else {
                 resultRows = allRows;
@@ -80,7 +80,7 @@ public class DuplicateRowFilterJob
             resultRows = processRemoveAll(allRows, dupColIndices);
         } else {
             final boolean keepMin = calculateKeepMin(rowSelection, orderDirection);
-            resultRows = processRemoveKeepOne(allRows, dupColIndices, orderColIdx, keepMin);
+            resultRows = processRemoveKeepOne(allRows, dupColIndices, orderColIdx, keepMin, rowSelection);
         }
 
         final SparkSession spark = SparkSession.builder().sparkContext(sparkContext).getOrCreate();
@@ -94,7 +94,7 @@ public class DuplicateRowFilterJob
 
     /** REMOVE + FIRST/LAST/MINIMUM/MAXIMUM: keep one row per group. */
     private List<Row> processRemoveKeepOne(final List<Row> allRows, final int[] dupColIndices,
-            final int orderColIdx, final boolean keepMin) {
+            final int orderColIdx, final boolean keepMin, final String rowSelection) {
         final Map<String, Row> best = new LinkedHashMap<>();
         for (final Row row : allRows) {
             final String key = groupKey(row, dupColIndices);
@@ -103,6 +103,9 @@ public class DuplicateRowFilterJob
                 best.put(key, row);
             } else if (orderColIdx >= 0
                     && shouldReplace(row.get(orderColIdx), existing.get(orderColIdx), keepMin)) {
+                best.put(key, row);
+            } else if (orderColIdx < 0 && "LAST".equals(rowSelection)) {
+                // No order column + LAST: keep the last encountered row
                 best.put(key, row);
             }
         }
@@ -132,7 +135,7 @@ public class DuplicateRowFilterJob
 
     /** KEEP + status column: annotate each row as unique/chosen/duplicate. */
     private List<Row> processKeepWithStatus(final List<Row> allRows, final int[] dupColIndices,
-            final int orderColIdx, final boolean keepMin) {
+            final int orderColIdx, final boolean keepMin, final String rowSelection) {
         final Map<String, List<Integer>> groups = new LinkedHashMap<>();
         for (int i = 0; i < allRows.size(); i++) {
             final String key = groupKey(allRows.get(i), dupColIndices);
@@ -155,6 +158,8 @@ public class DuplicateRowFilterJob
                         bestIdx = idx;
                     }
                 }
+            } else if (orderColIdx < 0 && "LAST".equals(rowSelection) && indices.size() > 1) {
+                bestIdx = indices.get(indices.size() - 1);
             }
             chosen.put(entry.getKey(), bestIdx);
         }

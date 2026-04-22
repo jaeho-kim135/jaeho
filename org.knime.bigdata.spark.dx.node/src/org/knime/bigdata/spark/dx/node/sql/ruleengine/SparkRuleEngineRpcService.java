@@ -36,9 +36,11 @@ public final class SparkRuleEngineRpcService {
     private static final Pattern FLOW_VAR_NEW = Pattern.compile("\\$\\$\\{([^}]+)\\}");
 
     private final NodeContext m_nodeContext;
+    private final ClassLoader m_bundleClassLoader;
 
     SparkRuleEngineRpcService(final NodeContext nodeContext) {
         m_nodeContext = nodeContext;
+        m_bundleClassLoader = getClass().getClassLoader();
     }
 
     /**
@@ -64,8 +66,10 @@ public final class SparkRuleEngineRpcService {
             return result;
         }
 
+        final ClassLoader originalCL = Thread.currentThread().getContextClassLoader();
         try {
             NodeContext.pushContext(m_nodeContext);
+            Thread.currentThread().setContextClassLoader(m_bundleClassLoader);
 
             final SparkDataPortObject sparkPort = findSparkInputPort();
             if (sparkPort == null) {
@@ -103,6 +107,7 @@ public final class SparkRuleEngineRpcService {
             result.put("success", false);
             result.put("error", extractErrorMessage(e));
         } finally {
+            Thread.currentThread().setContextClassLoader(originalCL);
             NodeContext.removeLastContext();
         }
         return result;
@@ -114,8 +119,10 @@ public final class SparkRuleEngineRpcService {
      */
     public Map<String, Object> previewInputTable() {
         final Map<String, Object> result = new LinkedHashMap<>();
+        final ClassLoader originalCL = Thread.currentThread().getContextClassLoader();
         try {
             NodeContext.pushContext(m_nodeContext);
+            Thread.currentThread().setContextClassLoader(m_bundleClassLoader);
 
             final SparkDataPortObject sparkPort = findSparkInputPort();
             if (sparkPort == null) {
@@ -145,6 +152,7 @@ public final class SparkRuleEngineRpcService {
             result.put("success", false);
             result.put("error", extractErrorMessage(e));
         } finally {
+            Thread.currentThread().setContextClassLoader(originalCL);
             NodeContext.removeLastContext();
         }
         return result;

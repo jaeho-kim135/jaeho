@@ -230,6 +230,7 @@ public class SparkConcatenateNodeModel extends SparkNodeModel {
         final List<DataColumnSpec> outputCols = new ArrayList<>();
         final Set<String> usedNames = new LinkedHashSet<>();
 
+        // Explicit mapping rows — always include
         for (int i = 0; i < leftCols.length; i++) {
             final String left = leftCols[i];
             final String right = (i < rightCols.length) ? rightCols[i] : "";
@@ -237,30 +238,31 @@ public class SparkConcatenateNodeModel extends SparkNodeModel {
             final boolean hasRight = right != null && !right.isEmpty();
 
             if (hasLeft && hasRight) {
-                // Mapped pair — resolve type
                 final String outputName = makeUniqueName(left, usedNames);
                 final DataType leftType = leftSpec.getColumnSpec(leftSpec.findColumnIndex(left)).getType();
                 final DataType rightType = rightSpec.getColumnSpec(rightSpec.findColumnIndex(right)).getType();
                 final DataType resolvedType = resolveTypePairKNIME(leftType, rightType);
                 if (resolvedType == null) {
-                    return null; // defer to job (e.g. date promotion)
+                    return null;
                 }
                 outputCols.add(new DataColumnSpecCreator(outputName, resolvedType).createSpec());
                 usedNames.add(outputName);
             } else if (hasLeft) {
-                if ("FILL_NULL".equals(unmatchedLeft)) {
-                    final String outputName = makeUniqueName(left, usedNames);
-                    final DataType leftType = leftSpec.getColumnSpec(leftSpec.findColumnIndex(left)).getType();
-                    outputCols.add(new DataColumnSpecCreator(outputName, leftType).createSpec());
-                    usedNames.add(outputName);
+                if ("EXCLUDE".equals(unmatchedLeft)) {
+                    continue; // Skip unmatched left column
                 }
+                final String outputName = makeUniqueName(left, usedNames);
+                final DataType leftType = leftSpec.getColumnSpec(leftSpec.findColumnIndex(left)).getType();
+                outputCols.add(new DataColumnSpecCreator(outputName, leftType).createSpec());
+                usedNames.add(outputName);
             } else if (hasRight) {
-                if ("FILL_NULL".equals(unmatchedRight)) {
-                    final String outputName = makeUniqueName(right, usedNames);
-                    final DataType rightType = rightSpec.getColumnSpec(rightSpec.findColumnIndex(right)).getType();
-                    outputCols.add(new DataColumnSpecCreator(outputName, rightType).createSpec());
-                    usedNames.add(outputName);
+                if ("EXCLUDE".equals(unmatchedRight)) {
+                    continue; // Skip unmatched right column
                 }
+                final String outputName = makeUniqueName(right, usedNames);
+                final DataType rightType = rightSpec.getColumnSpec(rightSpec.findColumnIndex(right)).getType();
+                outputCols.add(new DataColumnSpecCreator(outputName, rightType).createSpec());
+                usedNames.add(outputName);
             }
         }
 

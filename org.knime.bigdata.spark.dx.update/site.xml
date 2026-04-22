@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <feature url="features/org.knime.bigdata.spark.dx.node.feature_1.0.1.202604200019.jar" id="org.knime.bigdata.spark.dx.node.feature" version="1.0.1.202604200019">
+      <category name="HYIM_Spark_Extention"/>
+   </feature>
+   <category-def name="HYIM_Spark_Extention" label="HYIM Spark Extention">
+      <description>
+         HYIM Spark Node - Custom Spark nodes for KNIME by HYIM (18 nodes).
+      </description>
+   </category-def>
+</site>

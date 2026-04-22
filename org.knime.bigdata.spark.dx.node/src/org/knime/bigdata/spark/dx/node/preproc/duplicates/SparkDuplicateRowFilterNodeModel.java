@@ -61,10 +61,18 @@ public class SparkDuplicateRowFilterNodeModel extends SparkNodeModel {
         }
 
         final String rowSelection = m_settings.getRowSelection();
+        final boolean useOrderColumn = m_settings.isUseOrderColumn();
+
+        // MINIMUM/MAXIMUM always require an order column
+        if (("MINIMUM".equals(rowSelection) || "MAXIMUM".equals(rowSelection)) && !useOrderColumn) {
+            throw new InvalidSettingsException(
+                "Minimum/Maximum row selection requires the 'Use Order Column' option to be enabled.");
+        }
 
         // Check if order column is needed
-        final boolean needsOrderColumn = "FIRST".equals(rowSelection) || "LAST".equals(rowSelection)
-            || "MINIMUM".equals(rowSelection) || "MAXIMUM".equals(rowSelection);
+        final boolean needsOrderColumn = useOrderColumn
+            && ("FIRST".equals(rowSelection) || "LAST".equals(rowSelection)
+                || "MINIMUM".equals(rowSelection) || "MAXIMUM".equals(rowSelection));
 
         if (needsOrderColumn) {
             String orderColumn = m_settings.getOrderColumn();
@@ -104,13 +112,18 @@ public class SparkDuplicateRowFilterNodeModel extends SparkNodeModel {
         final String[] dupColumns = (columns != null && !columns.isEmpty())
             ? columns.toArray(new String[0]) : new String[0];
 
+        // Pass empty order column when useOrderColumn is disabled or REMOVE_ALL (order is irrelevant)
+        final String rowSelection = m_settings.getRowSelection();
+        final String orderCol = (m_settings.isUseOrderColumn() && !"REMOVE_ALL".equals(rowSelection))
+            ? m_settings.getOrderColumn() : "";
+
         final SparkDuplicateRowFilterJobInput jobInput = new SparkDuplicateRowFilterJobInput(
             inputObject,
             outputObject,
             dupColumns,
             m_settings.getDuplicateHandling(),
-            m_settings.getRowSelection(),
-            m_settings.getOrderColumn(),
+            rowSelection,
+            orderCol,
             m_settings.getOrderDirection(),
             m_settings.isAddStatusColumn(),
             m_settings.getStatusColumnName());

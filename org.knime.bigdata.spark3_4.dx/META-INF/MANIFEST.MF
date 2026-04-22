@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: HYIM Spark Jobs for Spark 3.4
 Bundle-SymbolicName: org.knime.bigdata.spark3_4.dx;singleton:=true
-Bundle-Version: 1.0.2.qualifier
+Bundle-Version: 1.0.3.qualifier
 Bundle-Vendor: HYIM
 Export-Package: org.knime.bigdata.spark3_4.dx.jobs.calculate.datetimediff,
  org.knime.bigdata.spark3_4.dx.jobs.convert.datetimetostring,

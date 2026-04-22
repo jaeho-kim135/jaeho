@@ -172,7 +172,10 @@ class SparkStringManipNodeParameters implements NodeParameters {
             SparkContextID contextID = sparkPort.getContextID();
             String inputObjectId = sparkPort.getData().getID();
 
+            final ClassLoader originalCL = Thread.currentThread().getContextClassLoader();
             try {
+                Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+
                 SparkStringManipJobInput jobInput = new SparkStringManipJobInput(
                     inputObjectId,
                     expression,
@@ -201,6 +204,8 @@ class SparkStringManipNodeParameters implements NodeParameters {
                 return Optional.of(new TextMessage.Message(
                     "Evaluation failed: " + errMsg,
                     "", TextMessage.MessageType.ERROR));
+            } finally {
+                Thread.currentThread().setContextClassLoader(originalCL);
             }
         }
     }

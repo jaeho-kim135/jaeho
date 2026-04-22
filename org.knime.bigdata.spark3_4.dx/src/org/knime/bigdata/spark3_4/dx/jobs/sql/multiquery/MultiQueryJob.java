@@ -79,14 +79,14 @@ public class MultiQueryJob implements SparkJob<SparkMultiQueryJobInput, SparkMul
 
             final StringBuilder selectClause = new StringBuilder();
             for (int i = 0; i < allColumns.length; i++) {
+                final String col = allColumns[i];
+
                 if (selectClause.length() > 0) {
                     selectClause.append(", ");
                 }
 
-                final String col = allColumns[i];
                 if (targetSet.contains(col)) {
                     if (keepOriginal) {
-                        // Keep original column as-is, then add transformed column with alias
                         selectClause.append("`").append(col).append("`, ");
                     }
                     final String expr = sqlExpression.replace(PLACEHOLDER, "`" + col + "`");

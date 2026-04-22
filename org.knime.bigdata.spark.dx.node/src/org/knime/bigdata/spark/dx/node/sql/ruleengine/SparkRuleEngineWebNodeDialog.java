@@ -232,52 +232,52 @@ final class SparkRuleEngineWebNodeDialog implements NodeDialog {
 
         // ── String Functions (usable in conditions) ──────────────────
         catalog.add(buildCategory("String Functions",
-            fn("UPPER($col$)", "UPPER($col$)", "Converts to uppercase."),
-            fn("LOWER($col$)", "LOWER($col$)", "Converts to lowercase."),
-            fn("TRIM($col$)", "TRIM($col$)", "Removes leading/trailing whitespace."),
-            fn("LENGTH($col$)", "LENGTH($col$)", "Returns the string length."),
-            fn("CONCAT($a$, $b$)", "CONCAT($a$, $b$)", "Concatenates strings."),
-            fn("SUBSTRING($col$, pos, len)", "SUBSTRING($col$, 1, 5)", "Extracts a substring."),
-            fn("REPLACE($col$, old, new)", "REPLACE($col$, \"old\", \"new\")", "Replaces all occurrences."),
-            fn("INSTR($col$, substr)", "INSTR($col$, \"text\")", "Position of first occurrence (1-based).")
+            fn("UPPER(col)", "UPPER()", "Converts to uppercase."),
+            fn("LOWER(col)", "LOWER()", "Converts to lowercase."),
+            fn("TRIM(col)", "TRIM()", "Removes leading/trailing whitespace."),
+            fn("LENGTH(col)", "LENGTH()", "Returns the string length."),
+            fn("CONCAT(a, b)", "CONCAT()", "Concatenates strings."),
+            fn("SUBSTRING(col, pos, len)", "SUBSTRING()", "Extracts a substring."),
+            fn("REPLACE(col, old, new)", "REPLACE()", "Replaces all occurrences."),
+            fn("INSTR(col, substr)", "INSTR()", "Position of first occurrence (1-based).")
         ));
 
         // ── Math Functions ───────────────────────────────────────────
         catalog.add(buildCategory("Math Functions",
-            fn("ABS($col$)", "ABS($col$)", "Absolute value."),
-            fn("ROUND($col$, scale)", "ROUND($col$, 2)", "Rounds to specified decimal places."),
-            fn("CEIL($col$)", "CEIL($col$)", "Rounds up."),
-            fn("FLOOR($col$)", "FLOOR($col$)", "Rounds down."),
-            fn("MOD($a$, $b$)", "MOD($col$, 2)", "Remainder after division."),
-            fn("SQRT($col$)", "SQRT($col$)", "Square root."),
-            fn("POW($col$, exp)", "POW($col$, 2)", "Power function.")
+            fn("ABS(col)", "ABS()", "Absolute value."),
+            fn("ROUND(col, scale)", "ROUND()", "Rounds to specified decimal places."),
+            fn("CEIL(col)", "CEIL()", "Rounds up."),
+            fn("FLOOR(col)", "FLOOR()", "Rounds down."),
+            fn("MOD(a, b)", "MOD()", "Remainder after division."),
+            fn("SQRT(col)", "SQRT()", "Square root."),
+            fn("POW(col, exp)", "POW()", "Power function.")
         ));
 
         // ── Date/Time Functions ──────────────────────────────────────
         catalog.add(buildCategory("Date/Time Functions",
-            fn("YEAR($col$)", "YEAR($col$)", "Extracts the year."),
-            fn("MONTH($col$)", "MONTH($col$)", "Extracts the month (1-12)."),
-            fn("DAYOFMONTH($col$)", "DAYOFMONTH($col$)", "Extracts the day (1-31)."),
-            fn("HOUR($col$)", "HOUR($col$)", "Extracts the hour (0-23)."),
-            fn("DATEDIFF($end$, $start$)", "DATEDIFF($col$, CURRENT_DATE())", "Days between two dates."),
-            fn("DATE_FORMAT($col$, fmt)", "DATE_FORMAT($col$, \"yyyy-MM-dd\")", "Formats a date as string.")
+            fn("YEAR(col)", "YEAR()", "Extracts the year."),
+            fn("MONTH(col)", "MONTH()", "Extracts the month (1-12)."),
+            fn("DAYOFMONTH(col)", "DAYOFMONTH()", "Extracts the day (1-31)."),
+            fn("HOUR(col)", "HOUR()", "Extracts the hour (0-23)."),
+            fn("DATEDIFF(end, start)", "DATEDIFF()", "Days between two dates."),
+            fn("DATE_FORMAT(col, fmt)", "DATE_FORMAT()", "Formats a date as string.")
         ));
 
         // ── Null Handling ────────────────────────────────────────────
         catalog.add(buildCategory("Null Handling",
-            fn("COALESCE($a$, $b$)", "COALESCE($col$, \"default\")", "First non-null value."),
-            fn("IFNULL($col$, default)", "IFNULL($col$, 0)", "Default if null."),
-            fn("ISNULL($col$)", "ISNULL($col$)", "True if null."),
-            fn("ISNOTNULL($col$)", "ISNOTNULL($col$)", "True if not null.")
+            fn("COALESCE(a, b)", "COALESCE()", "First non-null value."),
+            fn("IFNULL(col, default)", "IFNULL()", "Default if null."),
+            fn("ISNULL(col)", "ISNULL()", "True if null."),
+            fn("ISNOTNULL(col)", "ISNOTNULL()", "True if not null.")
         ));
 
         // ── Type Cast ────────────────────────────────────────────────
         catalog.add(buildCategory("Type Cast",
-            fn("CAST($col$ AS type)", "CAST($col$ AS STRING)", "Convert to specified type."),
-            fn("STRING($col$)", "STRING($col$)", "Cast to string."),
-            fn("INT($col$)", "INT($col$)", "Cast to integer."),
-            fn("DOUBLE($col$)", "DOUBLE($col$)", "Cast to double."),
-            fn("BOOLEAN($col$)", "BOOLEAN($col$)", "Cast to boolean.")
+            fn("CAST(col AS type)", "CAST()", "Convert to specified type."),
+            fn("STRING(col)", "STRING()", "Cast to string."),
+            fn("INT(col)", "INT()", "Cast to integer."),
+            fn("DOUBLE(col)", "DOUBLE()", "Cast to double."),
+            fn("BOOLEAN(col)", "BOOLEAN()", "Cast to boolean.")
         ));
 
         // ── Rule Examples ────────────────────────────────────────────

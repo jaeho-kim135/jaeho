@@ -228,7 +228,9 @@ export default {
 
       nextTick(() => {
         if (editorTextarea.value) {
-          const newPos = start + text.length
+          // Place cursor after '(' — works for both "UPPER()" and "RPAD(, 10, ' ')"
+          const parenIdx = text.indexOf('(')
+          const newPos = parenIdx !== -1 ? start + parenIdx + 1 : start + text.length
           editorTextarea.value.focus()
           editorTextarea.value.setSelectionRange(newPos, newPos)
         }

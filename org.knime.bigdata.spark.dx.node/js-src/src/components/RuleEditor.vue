@@ -193,7 +193,10 @@ export default {
       const newVal = val.substring(0, start) + text + val.substring(end)
       emitUpdate({ rules: newVal })
       requestAnimationFrame(() => {
-        ta.selectionStart = ta.selectionEnd = start + text.length
+        // Place cursor after '(' — works for both "UPPER()" and "RPAD(, 10, ' ')"
+        const parenIdx = text.indexOf('(')
+        const newPos = parenIdx !== -1 ? start + parenIdx + 1 : start + text.length
+        ta.selectionStart = ta.selectionEnd = newPos
       })
     }
 

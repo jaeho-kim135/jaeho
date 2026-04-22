@@ -1,9 +1,8 @@
 package org.knime.bigdata.spark.dx.node.sql.multiquery;
 
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -28,6 +27,7 @@ import org.knime.core.node.workflow.FlowVariable;
 /**
  * Node model for the Spark Multi Query node. Applies a SQL expression template
  * to each selected column, replacing the $columnS placeholder with the column name.
+ * Flow variables ($$varName) in the expression are resolved to their values before execution.
  */
 public class SparkMultiQueryNodeModel extends SparkNodeModel {
 
@@ -39,7 +39,7 @@ public class SparkMultiQueryNodeModel extends SparkNodeModel {
      * $$  — double-dollar prefix distinguishes flow variables from the $columnS column placeholder.
      * Group 1 captures the variable name (letters, digits, underscores, hyphens, dots).
      */
-    private static final Pattern FLOW_VAR_PATTERN =
+    static final Pattern FLOW_VAR_PATTERN =
         Pattern.compile("\\$\\$([A-Za-z_][A-Za-z0-9_.\\-]*)");
 
     private final SparkMultiQuerySettings m_settings = new SparkMultiQuerySettings();
@@ -59,7 +59,7 @@ public class SparkMultiQueryNodeModel extends SparkNodeModel {
         final SparkDataPortObjectSpec sparkSpec = (SparkDataPortObjectSpec) inSpecs[0];
         final DataTableSpec tableSpec = sparkSpec.getTableSpec();
 
-        // Validate target columns
+        // Validate target columns (skip $$ flow variable references — resolved at execution)
         final List<String> targetColumns = m_settings.getTargetColumns();
         if (targetColumns == null || targetColumns.isEmpty()) {
             throw new InvalidSettingsException("No target columns selected. "
@@ -67,6 +67,9 @@ public class SparkMultiQueryNodeModel extends SparkNodeModel {
         }
 
         for (String col : targetColumns) {
+            if (col.startsWith("$$")) {
+                continue; // flow variable reference — validated at execution
+            }
             if (tableSpec.findColumnIndex(col) == -1) {
                 throw new InvalidSettingsException("Target column '" + col + "' not found in input table.");
             }
@@ -95,9 +98,6 @@ public class SparkMultiQueryNodeModel extends SparkNodeModel {
                 "Output column pattern must contain '" + SparkMultiQuerySettings.COLUMN_PLACEHOLDER + "'.");
         }
 
-        // Note: when keepOriginal=true and outputPattern=$columnS, the Spark job
-        // auto-generates unique names by appending _1, _2, etc. to avoid duplicates.
-
         // Output spec is null because the SQL expression may change column types
         return new PortObjectSpec[]{null};
     }
@@ -109,13 +109,23 @@ public class SparkMultiQueryNodeModel extends SparkNodeModel {
         final String inputObject = sparkPort.getData().getID();
         final String outputObject = SparkIDs.createSparkDataObjectID();
 
-        final List<String> targetColumns = m_settings.getTargetColumns();
+        final List<String> rawTargetColumns = m_settings.getTargetColumns();
+
+        // Filter out $$flow-variable references (they are for expression substitution, not targets)
+        final List<String> regularColumns = new ArrayList<>();
+        for (final String col : rawTargetColumns) {
+            if (!col.startsWith("$$")) {
+                regularColumns.add(col);
+            }
+        }
+
+        // Resolve $$varName tokens in SQL expression to actual flow variable values
         final String resolvedSql = resolveFlowVariables(m_settings.getSqlExpression());
 
         final SparkMultiQueryJobInput jobInput = new SparkMultiQueryJobInput(
             inputObject,
             outputObject,
-            targetColumns.toArray(new String[0]),
+            regularColumns.toArray(new String[0]),
             resolvedSql,
             m_settings.keepOriginalColumns(),
             m_settings.getOutputColumnPattern());

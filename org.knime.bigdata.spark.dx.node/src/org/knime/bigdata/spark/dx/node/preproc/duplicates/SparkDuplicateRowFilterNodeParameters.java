@@ -51,11 +51,6 @@ class SparkDuplicateRowFilterNodeParameters implements NodeParameters {
             description = "Select which row to keep from each duplicate group.")
         @After(DuplicateDetectionSection.class)
         interface RowSelectionSection {}
-
-        @Section(title = "Order Column",
-            description = "Column used to determine row ordering within duplicate groups.")
-        @After(RowSelectionSection.class)
-        interface OrderColumnSection {}
     }
 
     // ── ENUMS ─────────────────────────────────────────────────────────────────
@@ -81,10 +76,11 @@ class SparkDuplicateRowFilterNodeParameters implements NodeParameters {
     // ── PARAMETER REFERENCES ─────────────────────────────────────────────────
 
     interface RowSelRef extends ParameterReference<RowSelection> {}
+    interface UseOrderColRef extends ParameterReference<Boolean> {}
 
     // ── EFFECT PREDICATES ─────────────────────────────────────────────────────
 
-    /** Shows the order column when row selection requires ordering (FIRST/LAST/MIN/MAX). */
+    /** Shows the useOrderColumn checkbox when row selection can use ordering (FIRST/LAST/MIN/MAX). */
     static final class NeedsOrderColumnPredicate implements EffectPredicateProvider {
         @Override
         public EffectPredicate init(final PredicateInitializer i) {
@@ -94,11 +90,24 @@ class SparkDuplicateRowFilterNodeParameters implements NodeParameters {
         }
     }
 
-    /** Shows the order direction only for FIRST/LAST modes. */
-    static final class IsFirstOrLastPredicate implements EffectPredicateProvider {
+    /** Shows the order column field when useOrderColumn=true AND row selection needs ordering. */
+    static final class ShowOrderColumnPredicate implements EffectPredicateProvider {
         @Override
         public EffectPredicate init(final PredicateInitializer i) {
-            return i.getEnum(RowSelRef.class).isOneOf(RowSelection.FIRST, RowSelection.LAST);
+            return i.getBoolean(UseOrderColRef.class).isTrue()
+                .and(i.getEnum(RowSelRef.class).isOneOf(
+                    RowSelection.FIRST, RowSelection.LAST,
+                    RowSelection.MINIMUM, RowSelection.MAXIMUM));
+        }
+    }
+
+    /** Shows the order direction when useOrderColumn=true AND FIRST/LAST. */
+    static final class ShowOrderDirectionPredicate implements EffectPredicateProvider {
+        @Override
+        public EffectPredicate init(final PredicateInitializer i) {
+            return i.getBoolean(UseOrderColRef.class).isTrue()
+                .and(i.getEnum(RowSelRef.class).isOneOf(
+                    RowSelection.FIRST, RowSelection.LAST));
         }
     }
 
@@ -179,22 +188,32 @@ class SparkDuplicateRowFilterNodeParameters implements NodeParameters {
     @Persist(configKey = SparkDuplicateRowFilterSettings.CFG_ROW_SELECTION)
     RowSelection m_rowSelection = RowSelection.FIRST;
 
-    // ── Order Column (visible for FIRST/LAST/MIN/MAX only) ───────────────────
-    @Layout(DialogSections.OrderColumnSection.class)
-    @Widget(title = "Order Column",
-        description = "Column used to determine row ordering within each duplicate group. "
-            + "Required for first/last/minimum/maximum row selection.")
-    @ChoicesProvider(SparkAllColumnChoicesProvider.class)
+    // ── Use Order Column toggle (visible for FIRST/LAST/MIN/MAX) ─────────────
+    @Layout(DialogSections.RowSelectionSection.class)
+    @Widget(title = "Use Order Column",
+        description = "Enable to specify a column for ordering within duplicate groups. "
+            + "When disabled, an arbitrary row is kept (non-deterministic). "
+            + "Required for minimum/maximum row selection.")
     @Effect(predicate = NeedsOrderColumnPredicate.class, type = EffectType.SHOW)
+    @ValueReference(UseOrderColRef.class)
+    @Persist(configKey = SparkDuplicateRowFilterSettings.CFG_USE_ORDER_COLUMN)
+    boolean m_useOrderColumn = false;
+
+    // ── Order Column (visible when useOrderColumn=true AND FIRST/LAST/MIN/MAX) ──
+    @Layout(DialogSections.RowSelectionSection.class)
+    @Widget(title = "Order Column",
+        description = "Column used to determine row ordering within each duplicate group.")
+    @ChoicesProvider(SparkAllColumnChoicesProvider.class)
+    @Effect(predicate = ShowOrderColumnPredicate.class, type = EffectType.SHOW)
     @Persist(configKey = SparkDuplicateRowFilterSettings.CFG_ORDER_COLUMN)
     String m_orderColumn = "";
 
-    // ── Order Direction (visible for FIRST/LAST only) ────────────────────────
-    @Layout(DialogSections.OrderColumnSection.class)
+    // ── Order Direction (visible when useOrderColumn=true AND FIRST/LAST) ────
+    @Layout(DialogSections.RowSelectionSection.class)
     @Widget(title = "Order Direction",
         description = "Sort direction for the order column when selecting first or last occurrence.")
     @ValueSwitchWidget
-    @Effect(predicate = IsFirstOrLastPredicate.class, type = EffectType.SHOW)
+    @Effect(predicate = ShowOrderDirectionPredicate.class, type = EffectType.SHOW)
     @Persist(configKey = SparkDuplicateRowFilterSettings.CFG_ORDER_DIRECTION)
     OrderDirection m_orderDirection = OrderDirection.ASC;
 

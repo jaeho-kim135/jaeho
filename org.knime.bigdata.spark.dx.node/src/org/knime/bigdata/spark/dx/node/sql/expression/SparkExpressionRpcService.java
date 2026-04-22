@@ -35,12 +35,14 @@ public final class SparkExpressionRpcService {
     private static final Pattern FLOW_VAR_PATTERN = Pattern.compile("\\$\\$\\{([^}]+)\\}");
 
     private final NodeContext m_nodeContext;
+    private final ClassLoader m_bundleClassLoader;
 
     /**
      * @param nodeContext captured at dialog creation time
      */
     SparkExpressionRpcService(final NodeContext nodeContext) {
         m_nodeContext = nodeContext;
+        m_bundleClassLoader = getClass().getClassLoader();
     }
 
     /**
@@ -71,8 +73,10 @@ public final class SparkExpressionRpcService {
             return result;
         }
 
+        final ClassLoader originalCL = Thread.currentThread().getContextClassLoader();
         try {
             NodeContext.pushContext(m_nodeContext);
+            Thread.currentThread().setContextClassLoader(m_bundleClassLoader);
 
             final SparkDataPortObject sparkPort = findSparkInputPort();
             if (sparkPort == null) {
@@ -108,6 +112,7 @@ public final class SparkExpressionRpcService {
             result.put("success", false);
             result.put("error", extractErrorMessage(e));
         } finally {
+            Thread.currentThread().setContextClassLoader(originalCL);
             NodeContext.removeLastContext();
         }
         return result;
@@ -122,8 +127,10 @@ public final class SparkExpressionRpcService {
      */
     public Map<String, Object> previewInputTable() {
         final Map<String, Object> result = new LinkedHashMap<>();
+        final ClassLoader originalCL = Thread.currentThread().getContextClassLoader();
         try {
             NodeContext.pushContext(m_nodeContext);
+            Thread.currentThread().setContextClassLoader(m_bundleClassLoader);
 
             final SparkDataPortObject sparkPort = findSparkInputPort();
             if (sparkPort == null) {
@@ -153,6 +160,7 @@ public final class SparkExpressionRpcService {
             result.put("success", false);
             result.put("error", extractErrorMessage(e));
         } finally {
+            Thread.currentThread().setContextClassLoader(originalCL);
             NodeContext.removeLastContext();
         }
         return result;

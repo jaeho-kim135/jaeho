@@ -221,7 +221,10 @@ class SparkCaseConvertNodeParameters implements NodeParameters {
             SparkContextID contextID = sparkPort.getContextID();
             String inputObjectId = sparkPort.getData().getID();
 
+            final ClassLoader originalCL = Thread.currentThread().getContextClassLoader();
             try {
+                Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+
                 CaseMode mode = m_modeSupplier.get();
                 String modeStr = (mode != null ? mode : CaseMode.UPPERCASE).name();
 
@@ -242,6 +245,8 @@ class SparkCaseConvertNodeParameters implements NodeParameters {
                 return Optional.of(new TextMessage.Message(
                     "Evaluation failed: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()),
                     "", TextMessage.MessageType.ERROR));
+            } finally {
+                Thread.currentThread().setContextClassLoader(originalCL);
             }
         }
     }
