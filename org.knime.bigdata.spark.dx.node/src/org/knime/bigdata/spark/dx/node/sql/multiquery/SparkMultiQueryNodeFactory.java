@@ -17,7 +17,7 @@ public final class SparkMultiQueryNodeFactory
     implements SparkNodeFactory<SparkMultiQueryNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Multi Query (HYIM)")
+        .name("Spark Multi Query (Obzen)")
         .icon("icon.png")
         .shortDescription("Applies a SQL expression to multiple selected columns.")
         .fullDescription(

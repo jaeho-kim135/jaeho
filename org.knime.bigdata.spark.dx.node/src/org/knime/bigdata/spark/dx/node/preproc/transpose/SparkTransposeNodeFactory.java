@@ -17,7 +17,7 @@ public final class SparkTransposeNodeFactory
     implements SparkNodeFactory<SparkTransposeNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Table Transposer (HYIM)")
+        .name("Spark Table Transposer (Obzen)")
         .icon("icon.png")
         .shortDescription("Transposes a Spark DataFrame (rows become columns and vice versa).")
         .fullDescription("<p>Transposes a Spark DataFrame by converting rows to columns and columns to rows. "

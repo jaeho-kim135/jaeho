@@ -17,7 +17,7 @@ public final class SparkLagColumnNodeFactory
     implements SparkNodeFactory<SparkLagColumnNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Lag Column (HYIM)")
+        .name("Spark Lag Column (Obzen)")
         .icon("lag_column.png")
         .shortDescription("Creates lag or lead columns using Spark Window functions.")
         .fullDescription(

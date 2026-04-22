@@ -17,7 +17,7 @@ public final class SparkCellSplitterNodeFactory
     implements SparkNodeFactory<SparkCellSplitterNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Cell Splitter (HYIM)")
+        .name("Spark Cell Splitter (Obzen)")
         .icon("icon.png")
         .shortDescription("Splits a string column into multiple columns by a delimiter.")
         .fullDescription("<p>Splits the content of a string column into multiple new columns using a delimiter. "

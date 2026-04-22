@@ -17,7 +17,7 @@ public final class SparkRankNodeFactory
     implements SparkNodeFactory<SparkRankNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Rank (HYIM)")
+        .name("Spark Rank (Obzen)")
         .icon("icon.png")
         .shortDescription("Assigns rank values to rows of a Spark DataFrame using window functions.")
         .fullDescription("<p>Assigns rank values to rows of a Spark DataFrame based on the ordering of one or more "

@@ -1,9 +1,9 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: HYIM Spark Jobs for Spark 3.5
+Bundle-Name: Obzen Spark Jobs for Spark 3.5
 Bundle-SymbolicName: org.knime.bigdata.spark3_5.dx;singleton:=true
 Bundle-Version: 1.0.3.qualifier
-Bundle-Vendor: HYIM
+Bundle-Vendor: Obzen
 Export-Package: org.knime.bigdata.spark3_5.dx.jobs.calculate.datetimediff,
  org.knime.bigdata.spark3_5.dx.jobs.convert.datetimetostring,
  org.knime.bigdata.spark3_5.dx.jobs.extract.datetimefields,

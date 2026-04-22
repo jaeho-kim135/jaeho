@@ -17,7 +17,7 @@ public final class SparkDuplicateRowFilterNodeFactory
     implements SparkNodeFactory<SparkDuplicateRowFilterNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Duplicate Row Filter (HYIM)")
+        .name("Spark Duplicate Row Filter (Obzen)")
         .icon("icon.png")
         .shortDescription("Removes duplicate rows in a Spark DataFrame.")
         .fullDescription("<p>Detects and removes duplicate rows in a Spark DataFrame based on selected columns. "

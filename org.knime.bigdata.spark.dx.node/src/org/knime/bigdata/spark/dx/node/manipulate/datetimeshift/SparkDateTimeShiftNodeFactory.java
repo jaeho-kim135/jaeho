@@ -17,7 +17,7 @@ public final class SparkDateTimeShiftNodeFactory
     implements SparkNodeFactory<SparkDateTimeShiftNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Date&Time Shift (HYIM)")
+        .name("Spark Date&Time Shift (Obzen)")
         .icon("icon.png")
         .shortDescription("Shifts date/time columns by a fixed or column-based value.")
         .fullDescription(

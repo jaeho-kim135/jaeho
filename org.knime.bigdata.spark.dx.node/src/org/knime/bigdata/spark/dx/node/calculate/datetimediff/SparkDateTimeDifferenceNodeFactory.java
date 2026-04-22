@@ -17,7 +17,7 @@ public final class SparkDateTimeDifferenceNodeFactory
     implements SparkNodeFactory<SparkDateTimeDifferenceNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Date&Time Difference (HYIM)")
+        .name("Spark Date&Time Difference (Obzen)")
         .icon("icon.png")
         .shortDescription("Calculates the difference between two date/time values in a Spark DataFrame.")
         .fullDescription(

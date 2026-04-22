@@ -17,7 +17,7 @@ public final class SparkColumnCombinerNodeFactory
     implements SparkNodeFactory<SparkColumnCombinerNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Column Combiner (HYIM)")
+        .name("Spark Column Combiner (Obzen)")
         .icon("icon.png")
         .shortDescription("Combines multiple columns into a single string column using a delimiter.")
         .fullDescription("<p>Combines the values of multiple columns into a single string column using "

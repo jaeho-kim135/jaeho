@@ -17,7 +17,7 @@ public final class SparkStringManipNodeFactory
     implements SparkNodeFactory<SparkStringManipNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark String Manipulation (HYIM)")
+        .name("Spark String Manipulation (Obzen)")
         .icon("icon.png")
         .shortDescription("Applies a Spark SQL string expression to manipulate string columns.")
         .fullDescription(

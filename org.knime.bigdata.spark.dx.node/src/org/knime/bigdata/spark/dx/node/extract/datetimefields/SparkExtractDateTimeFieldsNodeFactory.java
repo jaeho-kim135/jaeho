@@ -18,7 +18,7 @@ public final class SparkExtractDateTimeFieldsNodeFactory
     implements SparkNodeFactory<SparkExtractDateTimeFieldsNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Extract Date&Time Fields (HYIM)")
+        .name("Spark Extract Date&Time Fields (Obzen)")
         .icon("icon.png")
         .shortDescription("Extracts date and time fields (year, month, day, hour, etc.) from a date/time column.")
         .fullDescription(

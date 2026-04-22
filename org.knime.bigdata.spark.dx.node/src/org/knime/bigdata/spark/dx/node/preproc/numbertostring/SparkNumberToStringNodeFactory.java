@@ -17,7 +17,7 @@ public final class SparkNumberToStringNodeFactory
     implements SparkNodeFactory<SparkNumberToStringNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Number to String(HYIM)")
+        .name("Spark Number to String(Obzen)")
         .icon("number_string.png")
         .shortDescription("Converts numeric columns to String type in a Spark DataFrame.")
         .fullDescription(

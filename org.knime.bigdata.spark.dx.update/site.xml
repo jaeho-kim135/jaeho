@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <site>
    <feature url="features/org.knime.bigdata.spark.dx.node.feature_1.0.1.202604200019.jar" id="org.knime.bigdata.spark.dx.node.feature" version="1.0.1.202604200019">
-      <category name="HYIM_Spark_Extention"/>
+      <category name="Obzen_Spark_Extension"/>
    </feature>
-   <category-def name="HYIM_Spark_Extention" label="HYIM Spark Extention">
+   <category-def name="Obzen_Spark_Extension" label="Obzen Spark Extension">
       <description>
-         HYIM Spark Node - Custom Spark nodes for KNIME by HYIM (18 nodes).
+         Obzen Spark Node - Custom Spark nodes for KNIME by Obzen (18 nodes).
       </description>
    </category-def>
 </site>

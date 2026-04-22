@@ -17,7 +17,7 @@ public final class SparkUnpivotNodeFactory
     implements SparkNodeFactory<SparkUnpivotNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Unpivot (HYIM)")
+        .name("Spark Unpivot (Obzen)")
         .icon("icon.png")
         .shortDescription("Unpivots (melts) a Spark DataFrame from wide format to long format.")
         .fullDescription(

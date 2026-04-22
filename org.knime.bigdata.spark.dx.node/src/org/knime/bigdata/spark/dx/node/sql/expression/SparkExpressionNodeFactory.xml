@@ -2,7 +2,7 @@
 <knimeNode xmlns="http://knime.org/node/v3.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://knime.org/node/v3.1 http://knime.org/node/v3.1.xsd"
     icon="icon.png" type="Manipulator">
-    <name>Spark Expression (HYIM)</name>
+    <name>Spark Expression (Obzen)</name>
     <shortDescription>
         Applies multiple Spark SQL expressions to transform or add columns in a Spark DataFrame.
     </shortDescription>

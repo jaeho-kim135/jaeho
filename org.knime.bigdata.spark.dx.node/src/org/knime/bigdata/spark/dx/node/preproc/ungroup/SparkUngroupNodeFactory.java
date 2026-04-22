@@ -17,7 +17,7 @@ public final class SparkUngroupNodeFactory
     implements SparkNodeFactory<SparkUngroupNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Ungroup (HYIM)")
+        .name("Spark Ungroup (Obzen)")
         .icon("icon.png")
         .shortDescription("Explodes array, map, or delimited string columns into individual rows.")
         .fullDescription(

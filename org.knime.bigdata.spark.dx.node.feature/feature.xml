@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <feature
       id="org.knime.bigdata.spark.dx.node.feature"
-      label="HYIM Spark Node"
+      label="Obzen Spark Node"
       version="1.0.1.qualifier"
-      provider-name="HYIM">
+      provider-name="Obzen">
 
    <description>
-      HYIM Spark Node - Custom Spark nodes for KNIME by HYIM.
+      Obzen Spark Node - Custom Spark nodes for KNIME by Obzen.
       Includes: Unpivot, Multi Query, Expression, String to Number, Number to String,
       String to Date&amp;Time, Rule Engine, Duplicate Row Filter, Row Splitter,
       Date&amp;Time to String, Extract Date&amp;Time Fields, String Replacer, Rank,
@@ -14,7 +14,7 @@
    </description>
 
    <copyright>
-      Copyright (c) 2026 HYIM. All rights reserved.
+      Copyright (c) 2026 Obzen. All rights reserved.
    </copyright>
 
    <license url="">

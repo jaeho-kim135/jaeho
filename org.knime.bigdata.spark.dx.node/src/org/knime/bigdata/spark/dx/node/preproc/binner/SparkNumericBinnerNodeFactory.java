@@ -17,7 +17,7 @@ public final class SparkNumericBinnerNodeFactory
     implements SparkNodeFactory<SparkNumericBinnerNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Numeric Binner (HYIM)")
+        .name("Spark Numeric Binner (Obzen)")
         .icon("icon.png")
         .shortDescription("Bins numeric column values into categories in a Spark DataFrame.")
         .fullDescription(

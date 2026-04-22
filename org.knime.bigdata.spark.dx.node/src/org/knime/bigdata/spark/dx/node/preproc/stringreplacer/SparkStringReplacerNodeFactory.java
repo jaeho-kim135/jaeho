@@ -17,7 +17,7 @@ public final class SparkStringReplacerNodeFactory
     implements SparkNodeFactory<SparkStringReplacerNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark String Replacer (HYIM)")
+        .name("Spark String Replacer (Obzen)")
         .icon("icon.png")
         .shortDescription("Replaces strings in a column of a Spark DataFrame.")
         .fullDescription("<p>Replaces occurrences of a search pattern in a string column of a Spark DataFrame. "

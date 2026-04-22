@@ -17,7 +17,7 @@ public final class SparkTopKRowFilterNodeFactory
     implements SparkNodeFactory<SparkTopKRowFilterNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Top k Row Filter (HYIM)")
+        .name("Spark Top k Row Filter (Obzen)")
         .icon("icon.png")
         .shortDescription("Selects the top k rows from a Spark DataFrame based on sorting criteria.")
         .fullDescription(

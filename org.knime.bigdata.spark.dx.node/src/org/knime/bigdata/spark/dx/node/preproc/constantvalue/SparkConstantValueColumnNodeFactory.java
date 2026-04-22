@@ -17,7 +17,7 @@ public final class SparkConstantValueColumnNodeFactory
     implements SparkNodeFactory<SparkConstantValueColumnNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Constant Value Column (HYIM)")
+        .name("Spark Constant Value Column (Obzen)")
         .icon("icon.png")
         .shortDescription("Adds or replaces a column with a constant value in a Spark DataFrame.")
         .fullDescription("<p>Adds a new column filled with a constant value, or replaces an existing column "

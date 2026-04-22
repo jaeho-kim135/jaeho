@@ -17,7 +17,7 @@ public final class SparkCaseConvertNodeFactory
     implements SparkNodeFactory<SparkCaseConvertNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Case Converter (HYIM)")
+        .name("Spark Case Converter (Obzen)")
         .icon("icon.png")
         .shortDescription("Converts the case of string columns in a Spark DataFrame.")
         .fullDescription(

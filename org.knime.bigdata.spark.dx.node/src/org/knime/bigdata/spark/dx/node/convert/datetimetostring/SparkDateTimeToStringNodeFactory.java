@@ -17,7 +17,7 @@ public final class SparkDateTimeToStringNodeFactory
     implements SparkNodeFactory<SparkDateTimeToStringNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Date&Time to String (HYIM)")
+        .name("Spark Date&Time to String (Obzen)")
         .icon("icon.png")
         .shortDescription("Converts date/time columns to string columns using Spark's date_format().")
         .fullDescription(

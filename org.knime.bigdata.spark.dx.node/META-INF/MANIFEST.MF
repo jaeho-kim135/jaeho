@@ -1,9 +1,9 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: HYIM Spark Extension
+Bundle-Name: Obzen Spark Extension
 Bundle-SymbolicName: org.knime.bigdata.spark.dx.node;singleton:=true
 Bundle-Version: 1.0.3.qualifier
-Bundle-Vendor: HYIM
+Bundle-Vendor: Obzen
 Export-Package: org.knime.bigdata.spark.dx.node,
  org.knime.bigdata.spark.dx.node.calculate.datetimediff,
  org.knime.bigdata.spark.dx.node.convert.datetimetostring,

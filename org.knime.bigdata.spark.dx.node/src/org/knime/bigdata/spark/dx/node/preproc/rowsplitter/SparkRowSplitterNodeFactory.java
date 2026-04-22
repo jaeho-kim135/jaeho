@@ -20,7 +20,7 @@ public final class SparkRowSplitterNodeFactory
     implements SparkNodeFactory<SparkRowSplitterNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Row Splitter (HYIM)")
+        .name("Spark Row Splitter (Obzen)")
         .icon("icon.png")
         .shortDescription("Splits rows of a Spark DataFrame into two outputs based on filter conditions.")
         .fullDescription("<p>Splits the input Spark DataFrame into two disjoint sets based on one or more "

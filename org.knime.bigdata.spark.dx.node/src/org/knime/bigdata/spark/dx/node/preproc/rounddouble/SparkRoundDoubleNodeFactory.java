@@ -17,7 +17,7 @@ public final class SparkRoundDoubleNodeFactory
     implements SparkNodeFactory<SparkRoundDoubleNodeModel> {
 
     private static final WebUINodeConfiguration CONFIGURATION = WebUINodeConfiguration.builder()
-        .name("Spark Number Rounder (HYIM)")
+        .name("Spark Number Rounder (Obzen)")
         .icon("icon.png")
         .shortDescription("Rounds numeric columns in a Spark DataFrame using configurable rounding methods.")
         .fullDescription(
